@@ -10,7 +10,16 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@components/*": ["./src/components/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@types/*": ["./src/types/*"]
+    }
   },
   "include": ["src"]
 }

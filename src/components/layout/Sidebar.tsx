@@ -1,0 +1,126 @@
+import { NavLink, useLocation } from 'react-router-dom'
+import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/lib/store/auth'
+import {
+  LayoutDashboard,
+  Package,
+  Users,
+  Warehouse,
+  ShoppingCart,
+  DollarSign,
+  TrendingUp,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
+import { useState } from 'react'
+
+interface SidebarProps {
+  isCollapsed: boolean
+  onToggle: () => void
+}
+
+const menuItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/app/dashboard', permission: 'dashboard.read' },
+  { icon: Package, label: 'Produtos', path: '/app/products', permission: 'products.read' },
+  { icon: Users, label: 'Clientes', path: '/app/customers', permission: 'customers.read' },
+  { icon: Warehouse, label: 'Estoque', path: '/app/inventory', permission: 'stock.read' },
+  { icon: ShoppingCart, label: 'PDV', path: '/app/pos', permission: 'sales.write' },
+  { icon: DollarSign, label: 'Caixa', path: '/app/cashier', permission: 'cashier.read' },
+  { icon: TrendingUp, label: 'Financeiro', path: '/app/financial', permission: 'financial.read' },
+  { icon: Settings, label: 'Configurações', path: '/app/settings', permission: 'settings.read' },
+]
+
+export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+  const location = useLocation()
+  const { user, logout, checkPermission } = useAuthStore()
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+
+  return (
+    <aside
+      className={cn(
+        'fixed left-0 top-0 z-40 h-screen bg-white border-r border-gray-200 transition-all duration-300',
+        isCollapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+        {!isCollapsed && (
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">B</span>
+            </div>
+            <span className="text-lg font-bold text-gray-900">Blum</span>
+          </div>
+        )}
+        <button
+          onClick={onToggle}
+          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 px-2">
+        <ul className="space-y-1">
+          {menuItems.map((item) => {
+            const hasAccess = checkPermission(item.permission)
+            if (!hasAccess) return null
+
+            const isActive = location.pathname === item.path
+            const Icon = item.icon
+
+            return (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  onMouseEnter={() => setHoveredItem(item.path)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group',
+                    isActive
+                      ? 'bg-emerald-50 text-emerald-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-50',
+                    isCollapsed && 'justify-center'
+                  )}
+                >
+                  <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-emerald-600')} />
+                  {!isCollapsed && <span className="text-sm">{item.label}</span>}
+                  
+                  {/* Tooltip */}
+                  {isCollapsed && hoveredItem === item.path && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-50">
+                      {item.label}
+                    </div>
+                  )}
+                </NavLink>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t border-gray-200 p-2">
+        {!isCollapsed && user && (
+          <div className="px-3 py-2 mb-2">
+            <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
+            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+          </div>
+        )}
+        <button
+          onClick={logout}
+          className={cn(
+            'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-700 transition-all',
+            isCollapsed && 'justify-center'
+          )}
+        >
+          <LogOut className="h-5 w-5" />
+          {!isCollapsed && <span className="text-sm">Sair</span>}
+        </button>
+      </div>
+    </aside>
+  )
+}
