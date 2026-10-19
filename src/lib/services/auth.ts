@@ -122,8 +122,16 @@ export async function signUp(data: SignUpData): Promise<AuthResponse> {
  * Sign in an existing user
  */
 export async function signIn(email: string, password: string): Promise<AuthResponse> {
+  // CRITICAL: Never fall back to mock mode after authentication failure
+  // Mock mode is ONLY for development when Supabase is not configured
   if (!isSupabaseConfigured || !supabase) {
-    // Mock mode
+    // Development/demo mode only
+    if (import.meta.env.PROD) {
+      console.error('🚨 CRITICAL: Authentication attempted in production without Supabase')
+      return { user: null, error: 'Sistema indisponível. Contate o suporte.' }
+    }
+    
+    // Mock mode for development
     await new Promise((resolve) => setTimeout(resolve, 800))
     
     const mockUser = mockUsers[email]

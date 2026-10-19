@@ -294,7 +294,14 @@ export async function createProduct(input: ProductInput): Promise<Product> {
   const validated = productSchema.parse(input)
   
   if (!isSupabaseConfigured || !supabase) {
-    // Mock mode
+    // CRITICAL: In production, never allow operations without real database
+    if (import.meta.env.PROD) {
+      console.error('🚨 CRITICAL: Product creation attempted in production without Supabase')
+      throw new Error('Sistema indisponível. Contate o suporte.')
+    }
+    
+    // Mock mode for development only
+    console.warn('⚠️  MOCK MODE: Product created in memory (not persisted)')
     await new Promise((resolve) => setTimeout(resolve, 500))
     
     const newProduct: Product = {
