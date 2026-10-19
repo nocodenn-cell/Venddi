@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
@@ -26,6 +28,7 @@
     "recharts": "^2.10.0",
     "tailwind-merge": "^3.7.0",
     "uuid": "^9.0.1",
+    "vitest": "^5.0.5",
     "zod": "^4.6.7",
     "zustand": "^5.0.15"
   },

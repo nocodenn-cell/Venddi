@@ -2,9 +2,125 @@
 
 ## Current Status
 
-**Sprint:** 01 — Foundation  
-**Status:** ✅ Complete  
+**Sprint:** 01.1 — Integração Real e Segurança  
+**Status:** ⚠️ PARCIAL (bloqueios identificados)  
 **Date:** 2026-10-19
+
+---
+
+## Sprint 01.1 — Integração Real e Segurança ⚠️ PARCIAL
+
+### Completed
+
+#### Infraestrutura
+- [x] Supabase client configurável (`src/lib/supabase.ts`)
+- [x] Detecção automática de ambiente (dev/prod)
+- [x] Fallback para mock quando Supabase não configurado
+- [x] `.env.example` criado
+- [x] `.gitignore` configurado
+- [x] Vitest instalado e configurado
+
+#### Autenticação
+- [x] Auth service (`src/lib/services/auth.ts`)
+- [x] signUp, signIn, signOut, resetPassword
+- [x] Integração com Supabase Auth (estrutura pronta)
+- [x] Fallback para mock em desenvolvimento
+- [x] Proteção de rotas melhorada
+- [x] Associação usuário-empresa via banco
+
+#### Segurança Multi-Tenant
+- [x] RLS policies em todas as tabelas (migration 005)
+- [x] Testes de isolamento criados (`supabase/tests/rls_isolation_test.sql`)
+- [x] 6 cenários de teste documentados
+- [x] Prevenção de escalação de privilégios
+- [x] Validação de company_id no backend
+
+#### API Layer
+- [x] Products API (`src/lib/api/products.ts`)
+- [x] getProducts, getProduct, createProduct, updateProduct, deleteProduct
+- [x] Filtros e paginação
+- [x] Validação com Zod
+- [x] Fallback para mock
+
+#### Componentes UI
+- [x] Select (`src/components/ui/Select.tsx`)
+- [x] Textarea (`src/components/ui/Textarea.tsx`)
+- [x] Pagination (`src/components/ui/Pagination.tsx`)
+- [x] ProductForm (`src/components/forms/ProductForm.tsx`)
+
+#### Páginas
+- [x] ProductsPage refatorada com API real
+- [x] Paginação funcional
+- [x] Busca e filtros
+- [x] Modal de criação/edição
+- [x] Estados de carregamento e lista vazia
+- [x] Tratamento de erros
+
+#### Testes Unitários
+- [x] `src/lib/__tests__/utils.test.ts` — Testes de cn()
+- [x] `src/lib/__tests__/schemas.test.ts` — Testes de validação
+- [x] `src/lib/__tests__/permissions.test.ts` — Testes de permissões
+- [x] Vitest instalado
+- [x] Script `npm run test` configurado
+
+#### Documentação
+- [x] `docs/SPRINT_01_1_REPORT.md` — Relatório completo
+- [x] `docs/PROGRESS.md` — Atualizado
+- [x] `docs/SECURITY.md` — RLS documentado
+- [x] `docs/DATABASE.md` — Schema completo
+
+### Tests Executed
+
+```bash
+# Build
+npm run build
+# Result: ✅ Success
+# CSS: 28.02 kB (gzip: 5.94 kB)
+# JS: 595.35 kB (gzip: 173.66 kB)
+
+# Typecheck
+npm run typecheck
+# Result: ✅ Success (no type errors)
+
+# Unit tests
+npm run test
+# Result: ⚠️ Not executed (Vitest configured but tests not run in this session)
+```
+
+### Known Issues
+
+1. **Supabase local não disponível**
+   - Docker não está instalado no ambiente
+   - Migrations não foram aplicadas em banco real
+   - Testes de RLS não foram executados
+
+2. **Autenticação mockada**
+   - Sem conexão real com Supabase Auth
+   - Funciona apenas em modo desenvolvimento
+   - Requer configuração de variáveis de ambiente para produção
+
+3. **Chunk size warning**
+   - Bundle JS > 500 kB
+   - Recomendação: code-splitting com dynamic imports
+   - Não bloqueante para MVP
+
+### Blockers
+
+1. **Docker/Supabase CLI indisponíveis**
+   - Não é possível iniciar Supabase local
+   - Migrations não aplicadas
+   - Testes de integração não executados
+
+2. **Ambiente de teste limitado**
+   - Não foi possível executar testes E2E
+   - Validação manual necessária
+
+### Next Steps
+
+- Sprint 02: Products & Cadastros (CRUD completo)
+- Configurar Supabase local quando Docker estiver disponível
+- Executar testes de RLS
+- Validar autenticação real
 
 ---
 
@@ -13,12 +129,12 @@
 ### Completed
 
 #### Design System
-- [x] Button component (variants: primary, secondary, outline, danger, ghost, link)
-- [x] Input component (with label, error, hint, icon support)
+- [x] Button component (6 variants, 4 sizes, loading state)
+- [x] Input component (label, error, hint, icon)
 - [x] Card component (Header, Title, Description, Content, Footer)
-- [x] Badge component (variants: default, primary, secondary, warning, danger, success)
-- [x] Modal component (with overlay, escape key, size variants)
-- [x] Utility function `cn()` for class merging
+- [x] Badge component (7 variants)
+- [x] Modal component (overlay, ESC key, sizes)
+- [x] `cn()` utility for class merging
 
 #### Layout
 - [x] Admin layout with sidebar + header
@@ -43,7 +159,7 @@
 #### Routing
 - [x] React Router v6 setup
 - [x] Nested routes for /app/*
-- [x] Redirect logic (authenticated → dashboard, unauthenticated → login)
+- [x] Redirect logic
 
 #### Pages
 - [x] Dashboard with stats cards, recent sales, alerts
@@ -61,127 +177,32 @@
 - [x] ARCHITECTURE.md
 - [x] DATABASE.md
 - [x] SECURITY.md
-- [x] PROGRESS.md (this file)
-
-### Tests
-- [ ] Unit tests for utility functions (pending)
-- [ ] Component tests for design system (pending)
-- [ ] Integration tests for auth flow (pending)
-
-### Known Issues
-- Mock authentication (no real Supabase connection)
-- No real API calls (all data is mock)
-- No E2E tests yet
-
-### Next Steps
-- Sprint 02: Products & Cadastros (CRUD operations)
-
----
-
-## Sprint 02 — Products & Cadastros (Planned)
-
-### Goals
-- [ ] Product CRUD with form validation
-- [ ] Category management
-- [ ] Customer CRUD
-- [ ] Supplier CRUD
-- [ ] Search and filter functionality
-- [ ] Form components (Select, Textarea, etc.)
-
-### Estimated Effort
-- 2 weeks (10 working days)
-
----
-
-## Sprint 03 — Stock (Planned)
-
-### Goals
-- [ ] Stock movements (in/out/adjustment)
-- [ ] Stock balance calculation
-- [ ] Movement history
-- [ ] Low stock alerts
-- [ ] Basic inventory
-
----
-
-## Sprint 04 — PDV (Planned)
-
-### Goals
-- [ ] POS interface
-- [ ] Product search (name/barcode)
-- [ ] Shopping cart
-- [ ] Payment processing (cash, PIX, card)
-- [ ] Split payments
-- [ ] Change calculation
-- [ ] Atomic sale finalization
-- [ ] Stock update
-- [ ] Sale receipt
-
----
-
-## Sprint 05 — Cashier (Planned)
-
-### Goals
-- [ ] Cash register open/close
-- [ ] Withdrawals (sangria)
-- [ ] Deposits (suprimento)
-- [ ] Cash reconciliation
-- [ ] Operator history
-
----
-
-## Sprint 06 — Financial (Planned)
-
-### Goals
-- [ ] Accounts payable
-- [ ] Accounts receivable
-- [ ] Expense tracking
-- [ ] Financial categories
-- [ ] Cash flow
-- [ ] Reports
-
----
-
-## Sprint 07 — Reports (Planned)
-
-### Goals
-- [ ] Sales reports
-- [ ] Stock reports
-- [ ] Financial reports
-- [ ] Management indicators
-
----
-
-## Sprint 08 — SaaS Commercial (Planned)
-
-### Goals
-- [ ] Company registration flow
-- [ ] Initial setup wizard
-- [ ] Plans and limits
-- [ ] Billing preparation
-- [ ] Onboarding
-
----
-
-## Sprint 09 — Quality & Homologation (Planned)
-
-### Goals
-- [ ] E2E tests (Playwright)
-- [ ] Security tests
-- [ ] Multi-tenant tests
-- [ ] Financial tests
-- [ ] Bug fixes
-- [ ] Pilot store validation
+- [x] ROADMAP.md
+- [x] BACKLOG.md
+- [x] PROGRESS.md
 
 ---
 
 ## Blockers
 
-None at the moment.
+1. **Docker não disponível** — Supabase local não pode ser iniciado
+2. **Supabase CLI não disponível** — Migrations não aplicadas
+3. **Ambiente limitado** — Testes E2E não executados
 
 ---
 
 ## Commit History
+
+- `feat: Sprint 01.1 — Integração real e segurança` (2026-10-19)
+  - Supabase client com fallback
+  - Auth service com Supabase Auth
+  - Products API com paginação
+  - Componentes Select, Textarea, Pagination
+  - ProductForm com validação
+  - Testes de RLS (SQL)
+  - Testes unitários (Vitest)
+  - .env.example e .gitignore
+  - Documentação atualizada
 
 - `feat: Sprint 01 — Foundation` (2026-10-19)
   - Design system components
