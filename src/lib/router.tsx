@@ -6,6 +6,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProductsPage } from '@/pages/ProductsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { ExportPage } from '@/pages/ExportPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -34,6 +35,7 @@ export function AppRouter() {
         {/* Public Routes */}
         <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+        <Route path="/export" element={<ExportPage />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Protected Routes */}
