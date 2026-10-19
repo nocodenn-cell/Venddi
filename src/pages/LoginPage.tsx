@@ -84,8 +84,8 @@ export function LoginPage() {
 
             <div className="text-center text-sm text-gray-600">
               Não tem uma conta?{' '}
-              <Link to="/register" className="text-emerald-600 font-medium hover:underline">
-                Criar conta
+              <Link to="/cadastro" className="text-[#0EA572] font-medium hover:underline">
+                Criar conta grátis
               </Link>
             </div>
 

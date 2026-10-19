@@ -1,8 +1,8 @@
 # Venddi
 
-**Gestão simples para vender mais.**
+**Seu caixa simples. Sua loja sob controle.**
 
-Sistema de gestão empresarial (ERP) para pequenas lojas físicas brasileiras.
+Sistema de PDV (Ponto de Venda) para pequenas lojas físicas brasileiras.
 
 ## 🚀 Quick Start
 
@@ -18,9 +18,6 @@ npm run build
 
 # Verificar tipos
 npm run typecheck
-
-# Executar testes
-npm run test
 ```
 
 ## 🔐 Demo
@@ -50,14 +47,27 @@ supabase/
 
 docs/
 ├── BRAND.md          # Manual de marca
-├── BRAND_GUIDELINES.md # Diretrizes visuais
 ├── ARCHITECTURE.md   # Arquitetura
 ├── DATABASE.md       # Schema do banco
 ├── SECURITY.md       # Segurança
-├── ROADMAP.md        # Roadmap
-├── BACKLOG.md        # Backlog
 └── PROGRESS.md       # Progresso
 ```
+
+## 🎯 O que é a Venddi?
+
+A Venddi é um **SaaS de PDV** focado em pequenas lojas físicas brasileiras.
+
+**Não é:**
+- ❌ ERP complexo
+- ❌ Sistema com dezenas de módulos
+- ❌ Plataforma para grandes empresas
+
+**É:**
+- ✅ PDV simples e rápido
+- ✅ Controle básico de estoque
+- ✅ Relatórios de vendas
+- ✅ Trial gratuito de 15 dias
+- ✅ Modelo de assinatura mensal
 
 ## 🏗️ Stack
 
@@ -73,7 +83,6 @@ docs/
 
 A identidade visual da Venddi está documentada em:
 - `docs/BRAND.md` — Manual de marca completo
-- `docs/BRAND_GUIDELINES.md` — Diretrizes técnicas
 - `src/assets/branding/` — Logos SVG
 
 **Paleta principal:**
@@ -81,20 +90,42 @@ A identidade visual da Venddi está documentada em:
 - Verde escuro: `#087A54`
 - Verde claro: `#D1FAE5`
 
-## 📋 Sprints
+## 📋 Fases de Desenvolvimento
 
-- [x] Sprint 01 — Foundation ✅
-- [x] Sprint 01.1 — Integração Real ✅
-- [x] Sprint 01.2 — Desbloqueio ✅
-- [x] Rebranding — Blum → Venddi ✅
-- [ ] Sprint 02 — Products & Cadastros
-- [ ] Sprint 03 — Stock
-- [ ] Sprint 04 — PDV
-- [ ] Sprint 05 — Cashier
-- [ ] Sprint 06 — Financial
-- [ ] Sprint 07 — Reports
-- [ ] Sprint 08 — SaaS Commercial
-- [ ] Sprint 09 — Quality & Homologation
+### Fase 1 — Reposicionamento ✅
+- Landing page redesenhada
+- Página de preços
+- Fluxo de cadastro
+- PDV funcional (interface)
+- Navegação reestruturada
+
+### Fase 2 — Fundação SaaS (Próxima)
+- Configurar Supabase
+- Autenticação real
+- Trial de 15 dias
+- Criação de empresa
+- Migrations aplicadas
+
+### Fase 3 — PDV Completo
+- Produtos e estoque reais
+- Carrinho persistente
+- Pagamentos integrados
+- Vendas atômicas
+- Caixa e comprovante
+
+### Fase 4 — Administração
+- Gestão de produtos
+- Estoque
+- Funcionários
+- Histórico de vendas
+- Relatórios básicos
+
+### Fase 5 — BI e Comercial
+- Dashboards gerenciais
+- Indicadores confiáveis
+- Onboarding
+- Planos
+- Homologação com loja piloto
 
 ## 📄 Licença
 

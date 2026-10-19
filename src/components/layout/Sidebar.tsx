@@ -13,6 +13,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Receipt,
+  BarChart3,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -22,14 +24,31 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/app/dashboard', permission: 'dashboard.read' },
-  { icon: Package, label: 'Produtos', path: '/app/products', permission: 'products.read' },
-  { icon: Users, label: 'Clientes', path: '/app/customers', permission: 'customers.read' },
-  { icon: Warehouse, label: 'Estoque', path: '/app/inventory', permission: 'stock.read' },
-  { icon: ShoppingCart, label: 'PDV', path: '/app/pos', permission: 'sales.write' },
-  { icon: DollarSign, label: 'Caixa', path: '/app/cashier', permission: 'cashier.read' },
-  { icon: TrendingUp, label: 'Financeiro', path: '/app/financial', permission: 'financial.read' },
-  { icon: Settings, label: 'Configurações', path: '/app/settings', permission: 'settings.read' },
+  { 
+    section: 'PDV',
+    items: [
+      { icon: ShoppingCart, label: 'Frente de Caixa', path: '/app/pdv', permission: 'sales.write' },
+    ]
+  },
+  {
+    section: 'Gestão',
+    items: [
+      { icon: LayoutDashboard, label: 'Painel', path: '/app/gestao', permission: 'dashboard.read' },
+      { icon: Package, label: 'Produtos', path: '/app/produtos', permission: 'products.read' },
+      { icon: Warehouse, label: 'Estoque', path: '/app/estoque', permission: 'stock.read' },
+      { icon: Receipt, label: 'Vendas', path: '/app/vendas', permission: 'sales.read' },
+      { icon: DollarSign, label: 'Caixas', path: '/app/caixas', permission: 'cashier.read' },
+    ]
+  },
+  {
+    section: 'Administração',
+    items: [
+      { icon: Users, label: 'Funcionários', path: '/app/funcionarios', permission: 'users.read' },
+      { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permission: 'reports.read' },
+      { icon: TrendingUp, label: 'BI', path: '/app/bi', permission: 'reports.read' },
+      { icon: Settings, label: 'Configurações', path: '/app/configuracoes', permission: 'settings.read' },
+    ]
+  },
 ]
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
@@ -75,42 +94,51 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
-        <ul className="space-y-1">
-          {menuItems.map((item) => {
-            const hasAccess = checkPermission(item.permission)
-            if (!hasAccess) return null
+        {menuItems.map((section) => (
+          <div key={section.section} className="mb-6">
+            {!isCollapsed && (
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 mb-2">
+                {section.section}
+              </p>
+            )}
+            <ul className="space-y-1">
+              {section.items.map((item) => {
+                const hasAccess = checkPermission(item.permission)
+                if (!hasAccess) return null
 
-            const isActive = location.pathname === item.path
-            const Icon = item.icon
+                const isActive = location.pathname === item.path
+                const Icon = item.icon
 
-            return (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  onMouseEnter={() => setHoveredItem(item.path)}
-                  onMouseLeave={() => setHoveredItem(null)}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group',
-                    isActive
-                      ? 'bg-[#D1FAE5] text-[#087A54] font-medium'
-                      : 'text-gray-700 hover:bg-gray-50',
-                    isCollapsed && 'justify-center'
-                  )}
-                >
-                  <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-[#0EA572]')} />
-                  {!isCollapsed && <span className="text-sm">{item.label}</span>}
-                  
-                  {/* Tooltip */}
-                  {isCollapsed && hoveredItem === item.path && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-50">
-                      {item.label}
-                    </div>
-                  )}
-                </NavLink>
-              </li>
-            )
-          })}
-        </ul>
+                return (
+                  <li key={item.path}>
+                    <NavLink
+                      to={item.path}
+                      onMouseEnter={() => setHoveredItem(item.path)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group',
+                        isActive
+                          ? 'bg-[#D1FAE5] text-[#087A54] font-medium'
+                          : 'text-gray-700 hover:bg-gray-50',
+                        isCollapsed && 'justify-center'
+                      )}
+                    >
+                      <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-[#0EA572]')} />
+                      {!isCollapsed && <span className="text-sm">{item.label}</span>}
+                      
+                      {/* Tooltip */}
+                      {isCollapsed && hoveredItem === item.path && (
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap z-50">
+                          {item.label}
+                        </div>
+                      )}
+                    </NavLink>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}

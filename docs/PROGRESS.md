@@ -2,40 +2,60 @@
 
 ## Current Status
 
-**Sprint:** Rebranding (Blum → Venddi) ✅  
+**Fase:** 1 — Reposicionamento Estratégico ✅  
 **Status:** Complete  
 **Date:** 2026-10-19
 
 ---
 
-## Rebranding — Blum → Venddi ✅
+## Fase 1 — Reposicionamento Estratégico ✅
 
 ### Completed
 
-#### Identidade Visual
-- [x] Logo SVG criado (versão completa, ícone, texto, branco)
-- [x] Favicon SVG criado
-- [x] Paleta de cores definida (Verde Venddi #0EA572)
-- [x] Tipografia definida (Inter)
-- [x] Design tokens documentados
+#### Landing Page Redesenhada
+- [x] HomePage com foco em PDV
+- [x] Hero de alta conversão
+- [x] Mockup visual do PDV
+- [x] 4 benefícios principais
+- [x] Como funciona em 3 passos
+- [x] Preview do dashboard
+- [x] CTA final
+- [x] Footer institucional
 
-#### Documentação de Marca
-- [x] `docs/BRAND.md` — Manual de marca completo
-- [x] `docs/BRAND_GUIDELINES.md` — Diretrizes técnicas
+#### Página de Preços
+- [x] PricingPage com 3 planos
+- [x] Starter (R$ 79/mês)
+- [x] Professional (R$ 149/mês) — Mais popular
+- [x] Business (R$ 249/mês)
+- [x] FAQ com 4 perguntas
+- [x] CTA final
 
-#### Aplicação no Sistema
-- [x] Login page atualizada
-- [x] Register page atualizada
-- [x] Sidebar atualizada com novo logo
-- [x] ExportPage atualizada
-- [x] Auth store atualizado (demo credentials)
-- [x] index.html atualizado (título, favicon)
+#### Fluxo de Cadastro
+- [x] SignUpPage com trial de 15 dias
+- [x] Validação de formulário
+- [x] Campos: nome, email, senha, loja, CNPJ
+- [x] Banner destacando "15 dias grátis"
+- [x] Link para termos de uso
 
-#### Documentação Técnica
-- [x] README.md reescrito
+#### PDV Funcional
+- [x] PDVPage com interface completa
+- [x] Busca por nome ou SKU
+- [x] Grid de produtos
+- [x] Carrinho com ajustes de quantidade
+- [x] Cálculo automático do total
+- [x] Botões de pagamento (Dinheiro, Cartão, PIX)
+- [x] Botão "Finalizar Venda"
+
+#### Navegação Reestruturada
+- [x] Sidebar com 3 seções (PDV, Gestão, Administração)
+- [x] Rotas públicas (/, /precos, /cadastro, /login)
+- [x] Rotas privadas (/app/pdv, /app/gestao, etc.)
+- [x] Proteção de rotas
+
+#### Documentação
+- [x] docs/VENDDI_2_REPOSITIONING.md — Relatório completo
+- [x] README.md atualizado
 - [x] ARCHITECTURE.md atualizado
-- [x] DATABASE.md atualizado
-- [x] SECURITY.md atualizado
 - [x] ROADMAP.md atualizado
 - [x] BACKLOG.md atualizado
 - [x] PROGRESS.md atualizado
@@ -47,123 +67,69 @@
 
 ---
 
-## Sprint 01.2 — Desbloqueio e Homologação ✅
+## Rebranding — Blum → Venddi ✅
 
 ### Completed
 
-#### Segurança
-- [x] Modo mock seguro implementado
-- [x] Bloqueio de fallback em produção
-- [x] Separação de ambientes (DEV/PROD)
-- [x] Mensagens de erro claras
+#### Identidade Visual
+- [x] Logo SVG criado (4 variações)
+- [x] Favicon SVG criado
+- [x] Paleta de cores definida
+- [x] Tipografia definida
+- [x] Design tokens documentados
 
-#### Validações
-- [x] Build aprovado
-- [x] Typecheck aprovado
-- [x] Testes unitários configurados
+#### Documentação de Marca
+- [x] docs/BRAND.md — Manual de marca
+- [x] docs/BRAND_GUIDELINES.md — Diretrizes técnicas
 
-### Status: PARCIAL
-- Validação com Supabase real pendente (Docker indisponível)
-
----
-
-## Sprint 01.1 — Integração Real ✅
-
-### Completed
-
-#### Infraestrutura
-- [x] Supabase client configurável
-- [x] Auth service com fallback
-- [x] Products API com paginação
-- [x] .env.example e .gitignore
-
-#### Componentes
-- [x] Select, Textarea, Pagination
-- [x] ProductForm com validação
-
-#### Testes
-- [x] Testes de RLS (SQL)
-- [x] Testes unitários (Vitest)
-
-### Status: PARCIAL
-- Migrations não aplicadas (Supabase indisponível)
-
----
-
-## Sprint 01 — Foundation ✅
-
-### Completed
-
-#### Design System
-- [x] Button, Input, Card, Badge, Modal
-- [x] cn() utility
-
-#### Layout
-- [x] Admin layout com sidebar
-- [x] Top bar com busca
-
-#### Auth
-- [x] Login/Register pages
-- [x] Auth store (Zustand)
-- [x] Protected routes
-- [x] RBAC (5 roles)
-
-#### Database
-- [x] 5 migrations SQL
-- [x] RLS policies
-
-#### Documentation
-- [x] ARCHITECTURE, DATABASE, SECURITY
-- [x] ROADMAP, BACKLOG, PROGRESS
+#### Aplicação no Sistema
+- [x] Login page atualizada
+- [x] Sidebar atualizada
+- [x] Botões, inputs, badges atualizados
+- [x] Documentação técnica atualizada
 
 ---
 
 ## Próximos Passos
 
-### Sprint 02 — Products & Cadastros
-- [ ] CRUD completo de produtos com Supabase real
-- [ ] Gestão de categorias
-- [ ] Cadastro de clientes
-- [ ] Cadastro de fornecedores
+### Fase 2 — Fundação SaaS
 
-### Pré-requisitos
-- [ ] Configurar Docker e Supabase CLI
-- [ ] Aplicar migrations 001-005
-- [ ] Validar autenticação real
-- [ ] Executar testes RLS
+**Objetivos:**
+- [ ] Configurar Supabase
+- [ ] Implementar autenticação real
+- [ ] Criar fluxo de trial de 15 dias
+- [ ] Implementar criação segura de empresa
+- [ ] Aplicar migrations
+- [ ] Testar RLS
+
+**Pré-requisitos:**
+- [ ] Docker e Supabase CLI disponíveis
+- [ ] Credenciais Supabase configuradas
 
 ---
 
 ## Bloqueios
 
-1. **Docker não disponível** — Supabase local não pode ser iniciado
-2. **Supabase CLI não disponível** — Migrations não aplicadas
-3. **Testes de integração pendentes** — Requerem Supabase real
+1. **Supabase não configurado** — Autenticação e persistência não funcionam
+2. **Trial de 15 dias não implementado** — Lógica pendente
+3. **PDV sem persistência** — Backend pendente
 
 ---
 
 ## Commit History
 
+- `feat: Fase 1 — Reposicionamento Estratégico` (2026-10-19)
+  - Landing page redesenhada
+  - Página de preços
+  - Fluxo de cadastro
+  - PDV funcional
+  - Navegação reestruturada
+
 - `feat: Rebranding — Blum ERP → Venddi` (2026-10-19)
-  - Nova identidade visual completa
-  - Logos SVG (4 variações)
-  - Documentação de marca (BRAND.md, BRAND_GUIDELINES.md)
-  - Atualização de todas as páginas e componentes
-  - Atualização de toda a documentação técnica
+  - Nova identidade visual
+  - Logos SVG
+  - Documentação de marca
 
 - `feat: Sprint 01.2 — Desbloqueio e Homologação` (2026-10-19)
-  - Modo mock seguro
-  - Validações de build e typecheck
-
 - `feat: Sprint 01.1 — Integração Real` (2026-10-19)
-  - Supabase client
-  - Auth service
-  - Products API
-  - Testes de RLS
-
 - `feat: Sprint 01 — Foundation` (2026-10-19)
-  - Design system
-  - Admin layout
-  - Authentication
-  - Database migrations
-  - Documentation
