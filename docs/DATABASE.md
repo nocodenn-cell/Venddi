@@ -1,4 +1,4 @@
-# BLUM ERP — Database Schema
+# Venddi — Database Schema
 
 ## Tables Overview
 

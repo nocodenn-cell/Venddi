@@ -40,7 +40,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">Vendas Hoje</CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-600" />
+            <DollarSign className="h-4 w-4 text-[#0EA572]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -84,7 +84,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">Saldo em Caixa</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-600" />
+            <TrendingUp className="h-4 w-4 text-[#0EA572]" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">

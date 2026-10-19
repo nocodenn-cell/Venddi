@@ -4,7 +4,7 @@ import { saveAs } from 'file-saver'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Download, FileText, Folder, CheckCircle, AlertCircle } from 'lucide-react'
 
-// Lista completa de arquivos do projeto BLUM ERP
+// Lista completa de arquivos do projeto Venddi
 const PROJECT_FILES = [
   // Configurações raiz
   'package.json',
@@ -141,7 +141,7 @@ export function ExportPage() {
       })
 
       // Download
-      saveAs(blob, 'BLUM-ERP.zip')
+      saveAs(blob, 'Venddi.zip')
 
       setProgress({
         status: 'complete',
@@ -171,7 +171,7 @@ export function ExportPage() {
               <Download className="h-6 w-6 text-white" />
             </div>
             <div>
-              <CardTitle className="text-2xl">Exportar BLUM ERP</CardTitle>
+              <CardTitle className="text-2xl">Exportar Venddi</CardTitle>
               <p className="text-sm text-gray-500 mt-1">
                 Gere um arquivo ZIP com todo o código-fonte do projeto
               </p>
@@ -244,7 +244,7 @@ export function ExportPage() {
               {progress.status === 'complete' && (
                 <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 p-3 rounded-lg">
                   <CheckCircle className="h-4 w-4" />
-                  <span>Arquivo BLUM-ERP.zip gerado com sucesso!</span>
+                  <span>Arquivo Venddi.zip gerado com sucesso!</span>
                 </div>
               )}
 

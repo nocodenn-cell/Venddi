@@ -1,4 +1,4 @@
--- Blum ERP - Migration 002
+-- Venddi - Migration 002
 -- Products, Categories, Stock
 -- Date: 2026-10-19
 -- Sprint: 02

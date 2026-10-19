@@ -1,8 +1,10 @@
-# BLUM ERP — Roadmap
+# Venddi — Roadmap
 
 ## Vision
 
-Blum ERP is a modern, intuitive, and fast SaaS business management system for small Brazilian retail stores.
+Venddi is a modern, intuitive, and fast SaaS business management system for small Brazilian retail stores.
+
+**Tagline:** *Gestão simples para vender mais.*
 
 ## Milestones
 

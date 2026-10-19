@@ -1,4 +1,4 @@
--- Blum ERP - Migration 001
+-- Venddi - Migration 001
 -- Foundation: Companies, Users, Auth
 -- Date: 2026-10-19
 -- Sprint: 01

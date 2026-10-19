@@ -1,8 +1,10 @@
-# BLUM ERP — Architecture
+# Venddi — Architecture
 
 ## Overview
 
-Blum ERP is a SaaS business management system for small Brazilian retail stores, built from scratch by Mature Code.
+Venddi is a SaaS business management system for small Brazilian retail stores, built from scratch by Mature Code.
+
+**Tagline:** *Gestão simples para vender mais.*
 
 ## Tech Stack
 

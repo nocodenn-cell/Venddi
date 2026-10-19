@@ -34,12 +34,15 @@ export function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">B</span>
+            <div className="w-16 h-16 bg-[#0EA572] rounded-2xl flex items-center justify-center shadow-lg">
+              <svg width="36" height="36" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 18 20 L 30 42 L 42 20" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <path d="M 24 32 L 28 36 L 36 26" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.9"/>
+              </svg>
             </div>
           </div>
-          <CardTitle className="text-2xl">Bem-vindo ao Blum</CardTitle>
-          <CardDescription>Faça login para acessar o sistema</CardDescription>
+          <CardTitle className="text-2xl">Bem-vindo ao Venddi</CardTitle>
+          <CardDescription>Gestão simples para vender mais</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -87,7 +90,7 @@ export function LoginPage() {
             </div>
 
             <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700">
-              <strong>Demo:</strong> admin@blum.com / qualquer senha
+              <strong>Demo:</strong> admin@venddi.com / admin123
             </div>
           </form>
         </CardContent>

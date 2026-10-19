@@ -16,12 +16,12 @@ export interface AuthResponse {
 
 // Mock users for development (when Supabase is not configured)
 const mockUsers: Record<string, { user: User; password: string }> = {
-  'admin@blum.com': {
+  'admin@venddi.com': {
     user: {
       id: 'usr_001',
       companyId: 'cmp_001',
-      email: 'admin@blum.com',
-      fullName: 'Administrador Blum',
+      email: 'admin@venddi.com',
+      fullName: 'Administrador Venddi',
       role: 'owner',
       isActive: true,
       createdAt: new Date().toISOString(),

@@ -1,4 +1,4 @@
-# BLUM ERP — Backlog
+# Venddi — Backlog
 
 ## Sprint 02 — Products & Cadastros
 

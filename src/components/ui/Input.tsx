@@ -35,7 +35,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               icon && 'pl-10',
               error
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-200',
+                : 'border-gray-300 focus:border-[#0EA572] focus:ring-[#D1FAE5]',
               className
             )}
             ref={ref}

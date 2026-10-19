@@ -102,7 +102,7 @@ export function Pagination({
               className={cn(
                 'min-w-[32px] h-8 px-2 rounded-lg text-sm font-medium transition-colors',
                 currentPage === page
-                  ? 'bg-emerald-600 text-white'
+                  ? 'bg-[#0EA572] text-white'
                   : 'text-gray-600 hover:bg-gray-100'
               )}
             >

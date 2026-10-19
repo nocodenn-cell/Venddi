@@ -48,10 +48,21 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
         {!isCollapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">B</span>
+            <div className="w-8 h-8 bg-[#0EA572] rounded-lg flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 18 20 L 30 42 L 42 20" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <path d="M 24 32 L 28 36 L 36 26" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.9"/>
+              </svg>
             </div>
-            <span className="text-lg font-bold text-gray-900">Blum</span>
+            <span className="text-lg font-bold text-gray-900">Venddi</span>
+          </div>
+        )}
+        {isCollapsed && (
+          <div className="w-8 h-8 bg-[#0EA572] rounded-lg flex items-center justify-center mx-auto">
+            <svg width="20" height="20" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+              <path d="M 18 20 L 30 42 L 42 20" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+              <path d="M 24 32 L 28 36 L 36 26" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.9"/>
+            </svg>
           </div>
         )}
         <button
@@ -81,12 +92,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   className={cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all relative group',
                     isActive
-                      ? 'bg-emerald-50 text-emerald-700 font-medium'
+                      ? 'bg-[#D1FAE5] text-[#087A54] font-medium'
                       : 'text-gray-700 hover:bg-gray-50',
                     isCollapsed && 'justify-center'
                   )}
                 >
-                  <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-emerald-600')} />
+                  <Icon className={cn('h-5 w-5 flex-shrink-0', isActive && 'text-[#0EA572]')} />
                   {!isCollapsed && <span className="text-sm">{item.label}</span>}
                   
                   {/* Tooltip */}
@@ -113,7 +124,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         <button
           onClick={logout}
           className={cn(
-            'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-700 transition-all',
+            'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all',
             isCollapsed && 'justify-center'
           )}
         >

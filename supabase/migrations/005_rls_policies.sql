@@ -1,4 +1,4 @@
--- Blum ERP - Row Level Security Policies
+-- Venddi - Row Level Security Policies
 -- Date: 2026-10-19
 -- Sprint: 01
 

@@ -27,8 +27,8 @@ interface RegisterData {
 const mockUser: User = {
   id: 'usr_001',
   companyId: 'cmp_001',
-  email: 'admin@blum.com',
-  fullName: 'Administrador Blum',
+  email: 'admin@venddi.com',
+  fullName: 'Administrador Venddi',
   role: 'owner' as UserRole,
   isActive: true,
   createdAt: new Date().toISOString(),
@@ -37,7 +37,7 @@ const mockUser: User = {
 
 const mockCompany: Company = {
   id: 'cmp_001',
-  name: 'Loja Demo Blum',
+  name: 'Loja Demo Venddi',
   tradeName: 'Loja Demo',
   cnpj: '12.345.678/0001-90',
   phone: '(11) 99999-9999',
@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>()(
         await new Promise((resolve) => setTimeout(resolve, 800))
 
         // Mock authentication
-        if (email === 'admin@blum.com') {
+        if (email === 'admin@venddi.com') {
           set({
             user: mockUser,
             company: mockCompany,
@@ -130,7 +130,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'blum-auth',
+      name: 'venddi-auth',
     }
   )
 )

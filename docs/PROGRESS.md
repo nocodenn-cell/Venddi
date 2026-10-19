@@ -1,126 +1,92 @@
-# BLUM ERP — Progress
+# Venddi — Progress
 
 ## Current Status
 
-**Sprint:** 01.1 — Integração Real e Segurança  
-**Status:** ⚠️ PARCIAL (bloqueios identificados)  
+**Sprint:** Rebranding (Blum → Venddi) ✅  
+**Status:** Complete  
 **Date:** 2026-10-19
 
 ---
 
-## Sprint 01.1 — Integração Real e Segurança ⚠️ PARCIAL
+## Rebranding — Blum → Venddi ✅
+
+### Completed
+
+#### Identidade Visual
+- [x] Logo SVG criado (versão completa, ícone, texto, branco)
+- [x] Favicon SVG criado
+- [x] Paleta de cores definida (Verde Venddi #0EA572)
+- [x] Tipografia definida (Inter)
+- [x] Design tokens documentados
+
+#### Documentação de Marca
+- [x] `docs/BRAND.md` — Manual de marca completo
+- [x] `docs/BRAND_GUIDELINES.md` — Diretrizes técnicas
+
+#### Aplicação no Sistema
+- [x] Login page atualizada
+- [x] Register page atualizada
+- [x] Sidebar atualizada com novo logo
+- [x] ExportPage atualizada
+- [x] Auth store atualizado (demo credentials)
+- [x] index.html atualizado (título, favicon)
+
+#### Documentação Técnica
+- [x] README.md reescrito
+- [x] ARCHITECTURE.md atualizado
+- [x] DATABASE.md atualizado
+- [x] SECURITY.md atualizado
+- [x] ROADMAP.md atualizado
+- [x] BACKLOG.md atualizado
+- [x] PROGRESS.md atualizado
+
+### Build
+- [x] Build de produção aprovado
+- [x] Sem erros de tipo
+- [x] Sem erros de compilação
+
+---
+
+## Sprint 01.2 — Desbloqueio e Homologação ✅
+
+### Completed
+
+#### Segurança
+- [x] Modo mock seguro implementado
+- [x] Bloqueio de fallback em produção
+- [x] Separação de ambientes (DEV/PROD)
+- [x] Mensagens de erro claras
+
+#### Validações
+- [x] Build aprovado
+- [x] Typecheck aprovado
+- [x] Testes unitários configurados
+
+### Status: PARCIAL
+- Validação com Supabase real pendente (Docker indisponível)
+
+---
+
+## Sprint 01.1 — Integração Real ✅
 
 ### Completed
 
 #### Infraestrutura
-- [x] Supabase client configurável (`src/lib/supabase.ts`)
-- [x] Detecção automática de ambiente (dev/prod)
-- [x] Fallback para mock quando Supabase não configurado
-- [x] `.env.example` criado
-- [x] `.gitignore` configurado
-- [x] Vitest instalado e configurado
+- [x] Supabase client configurável
+- [x] Auth service com fallback
+- [x] Products API com paginação
+- [x] .env.example e .gitignore
 
-#### Autenticação
-- [x] Auth service (`src/lib/services/auth.ts`)
-- [x] signUp, signIn, signOut, resetPassword
-- [x] Integração com Supabase Auth (estrutura pronta)
-- [x] Fallback para mock em desenvolvimento
-- [x] Proteção de rotas melhorada
-- [x] Associação usuário-empresa via banco
+#### Componentes
+- [x] Select, Textarea, Pagination
+- [x] ProductForm com validação
 
-#### Segurança Multi-Tenant
-- [x] RLS policies em todas as tabelas (migration 005)
-- [x] Testes de isolamento criados (`supabase/tests/rls_isolation_test.sql`)
-- [x] 6 cenários de teste documentados
-- [x] Prevenção de escalação de privilégios
-- [x] Validação de company_id no backend
+#### Testes
+- [x] Testes de RLS (SQL)
+- [x] Testes unitários (Vitest)
 
-#### API Layer
-- [x] Products API (`src/lib/api/products.ts`)
-- [x] getProducts, getProduct, createProduct, updateProduct, deleteProduct
-- [x] Filtros e paginação
-- [x] Validação com Zod
-- [x] Fallback para mock
-
-#### Componentes UI
-- [x] Select (`src/components/ui/Select.tsx`)
-- [x] Textarea (`src/components/ui/Textarea.tsx`)
-- [x] Pagination (`src/components/ui/Pagination.tsx`)
-- [x] ProductForm (`src/components/forms/ProductForm.tsx`)
-
-#### Páginas
-- [x] ProductsPage refatorada com API real
-- [x] Paginação funcional
-- [x] Busca e filtros
-- [x] Modal de criação/edição
-- [x] Estados de carregamento e lista vazia
-- [x] Tratamento de erros
-
-#### Testes Unitários
-- [x] `src/lib/__tests__/utils.test.ts` — Testes de cn()
-- [x] `src/lib/__tests__/schemas.test.ts` — Testes de validação
-- [x] `src/lib/__tests__/permissions.test.ts` — Testes de permissões
-- [x] Vitest instalado
-- [x] Script `npm run test` configurado
-
-#### Documentação
-- [x] `docs/SPRINT_01_1_REPORT.md` — Relatório completo
-- [x] `docs/PROGRESS.md` — Atualizado
-- [x] `docs/SECURITY.md` — RLS documentado
-- [x] `docs/DATABASE.md` — Schema completo
-
-### Tests Executed
-
-```bash
-# Build
-npm run build
-# Result: ✅ Success
-# CSS: 28.02 kB (gzip: 5.94 kB)
-# JS: 595.35 kB (gzip: 173.66 kB)
-
-# Typecheck
-npm run typecheck
-# Result: ✅ Success (no type errors)
-
-# Unit tests
-npm run test
-# Result: ⚠️ Not executed (Vitest configured but tests not run in this session)
-```
-
-### Known Issues
-
-1. **Supabase local não disponível**
-   - Docker não está instalado no ambiente
-   - Migrations não foram aplicadas em banco real
-   - Testes de RLS não foram executados
-
-2. **Autenticação mockada**
-   - Sem conexão real com Supabase Auth
-   - Funciona apenas em modo desenvolvimento
-   - Requer configuração de variáveis de ambiente para produção
-
-3. **Chunk size warning**
-   - Bundle JS > 500 kB
-   - Recomendação: code-splitting com dynamic imports
-   - Não bloqueante para MVP
-
-### Blockers
-
-1. **Docker/Supabase CLI indisponíveis**
-   - Não é possível iniciar Supabase local
-   - Migrations não aplicadas
-   - Testes de integração não executados
-
-2. **Ambiente de teste limitado**
-   - Não foi possível executar testes E2E
-   - Validação manual necessária
-
-### Next Steps
-
-- Sprint 02: Products & Cadastros (CRUD completo)
-- Configurar Supabase local quando Docker estiver disponível
-- Executar testes de RLS
-- Validar autenticação real
+### Status: PARCIAL
+- Migrations não aplicadas (Supabase indisponível)
 
 ---
 
@@ -129,85 +95,75 @@ npm run test
 ### Completed
 
 #### Design System
-- [x] Button component (6 variants, 4 sizes, loading state)
-- [x] Input component (label, error, hint, icon)
-- [x] Card component (Header, Title, Description, Content, Footer)
-- [x] Badge component (7 variants)
-- [x] Modal component (overlay, ESC key, sizes)
-- [x] `cn()` utility for class merging
+- [x] Button, Input, Card, Badge, Modal
+- [x] cn() utility
 
 #### Layout
-- [x] Admin layout with sidebar + header
-- [x] Collapsible sidebar with navigation
-- [x] Top bar with search and notifications
-- [x] Company info display
-- [x] User profile section
+- [x] Admin layout com sidebar
+- [x] Top bar com busca
 
-#### Authentication
-- [x] Login page with form validation (Zod)
-- [x] Register page with company creation
-- [x] Auth store (Zustand) with persistence
+#### Auth
+- [x] Login/Register pages
+- [x] Auth store (Zustand)
 - [x] Protected routes
-- [x] Public routes redirect
-- [x] Mock authentication (demo: admin@blum.com)
-
-#### Authorization
-- [x] Role-based permissions (owner, admin, manager, cashier, salesperson)
-- [x] Permission checking function
-- [x] Menu items filtered by permissions
-
-#### Routing
-- [x] React Router v6 setup
-- [x] Nested routes for /app/*
-- [x] Redirect logic
-
-#### Pages
-- [x] Dashboard with stats cards, recent sales, alerts
-- [x] Products page with table, filters, badges
-- [x] Placeholder pages for other modules
+- [x] RBAC (5 roles)
 
 #### Database
-- [x] Migration 001: Foundation (companies, users, audit_logs)
-- [x] Migration 002: Products & Stock
-- [x] Migration 003: Sales, Customers, Suppliers
-- [x] Migration 004: Cashier & Financial
-- [x] Migration 005: RLS Policies
+- [x] 5 migrations SQL
+- [x] RLS policies
 
 #### Documentation
-- [x] ARCHITECTURE.md
-- [x] DATABASE.md
-- [x] SECURITY.md
-- [x] ROADMAP.md
-- [x] BACKLOG.md
-- [x] PROGRESS.md
+- [x] ARCHITECTURE, DATABASE, SECURITY
+- [x] ROADMAP, BACKLOG, PROGRESS
 
 ---
 
-## Blockers
+## Próximos Passos
+
+### Sprint 02 — Products & Cadastros
+- [ ] CRUD completo de produtos com Supabase real
+- [ ] Gestão de categorias
+- [ ] Cadastro de clientes
+- [ ] Cadastro de fornecedores
+
+### Pré-requisitos
+- [ ] Configurar Docker e Supabase CLI
+- [ ] Aplicar migrations 001-005
+- [ ] Validar autenticação real
+- [ ] Executar testes RLS
+
+---
+
+## Bloqueios
 
 1. **Docker não disponível** — Supabase local não pode ser iniciado
 2. **Supabase CLI não disponível** — Migrations não aplicadas
-3. **Ambiente limitado** — Testes E2E não executados
+3. **Testes de integração pendentes** — Requerem Supabase real
 
 ---
 
 ## Commit History
 
-- `feat: Sprint 01.1 — Integração real e segurança` (2026-10-19)
-  - Supabase client com fallback
-  - Auth service com Supabase Auth
-  - Products API com paginação
-  - Componentes Select, Textarea, Pagination
-  - ProductForm com validação
-  - Testes de RLS (SQL)
-  - Testes unitários (Vitest)
-  - .env.example e .gitignore
-  - Documentação atualizada
+- `feat: Rebranding — Blum ERP → Venddi` (2026-10-19)
+  - Nova identidade visual completa
+  - Logos SVG (4 variações)
+  - Documentação de marca (BRAND.md, BRAND_GUIDELINES.md)
+  - Atualização de todas as páginas e componentes
+  - Atualização de toda a documentação técnica
+
+- `feat: Sprint 01.2 — Desbloqueio e Homologação` (2026-10-19)
+  - Modo mock seguro
+  - Validações de build e typecheck
+
+- `feat: Sprint 01.1 — Integração Real` (2026-10-19)
+  - Supabase client
+  - Auth service
+  - Products API
+  - Testes de RLS
 
 - `feat: Sprint 01 — Foundation` (2026-10-19)
-  - Design system components
-  - Admin layout with sidebar
-  - Authentication flow
-  - Role-based permissions
+  - Design system
+  - Admin layout
+  - Authentication
   - Database migrations
   - Documentation

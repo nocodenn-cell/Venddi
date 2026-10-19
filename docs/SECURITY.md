@@ -1,4 +1,4 @@
-# BLUM ERP — Security
+# Venddi — Security
 
 ## Authentication
 

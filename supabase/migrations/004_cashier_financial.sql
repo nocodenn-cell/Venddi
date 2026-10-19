@@ -1,4 +1,4 @@
--- Blum ERP - Migration 004
+-- Venddi - Migration 004
 -- Cash Register, Financial
 -- Date: 2026-10-19
 -- Sprint: 05-06

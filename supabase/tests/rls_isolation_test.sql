@@ -1,4 +1,4 @@
--- BLUM ERP — RLS Isolation Tests
+-- Venddi — RLS Isolation Tests
 -- Sprint 01.1
 -- 
 -- These tests verify multi-tenant isolation

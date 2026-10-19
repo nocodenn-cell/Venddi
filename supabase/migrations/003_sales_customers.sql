@@ -1,4 +1,4 @@
--- Blum ERP - Migration 003
+-- Venddi - Migration 003
 -- Sales, Customers, Suppliers
 -- Date: 2026-10-19
 -- Sprint: 02-04
