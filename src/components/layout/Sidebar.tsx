@@ -44,6 +44,7 @@ const menuItems = [
     section: 'Administração',
     items: [
       { icon: Users, label: 'Funcionários', path: '/app/funcionarios', permission: 'users.read' },
+      { icon: DollarSign, label: 'Financeiro', path: '/app/financeiro', permission: 'financial.read' },
       { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permission: 'reports.read' },
       { icon: TrendingUp, label: 'BI', path: '/app/bi', permission: 'reports.read' },
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes', permission: 'settings.read' },

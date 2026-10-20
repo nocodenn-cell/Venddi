@@ -75,92 +75,46 @@ export async function createSale(params: {
     return newSale
   }
 
-  // Real Supabase implementation
+  // Real Supabase implementation - ATOMIC TRANSACTION
   try {
-    // Start transaction
-    const { data: saleData, error: saleError } = await supabase
+    // Use atomic RPC function that handles everything in a single transaction
+    const { data: result, error } = await supabase.rpc('create_atomic_sale', {
+      p_company_id: 'cmp_001', // Would come from auth context
+      p_operator_id: operatorId,
+      p_cash_register_id: cashRegisterId,
+      p_customer_id: customerId,
+      p_items: items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount,
+      })),
+      p_payments: payments.map((payment) => ({
+        method: payment.method,
+        amount: payment.amount,
+        installments: payment.installments,
+      })),
+      p_discount: discount,
+      p_additional_expenses: additionalExpenses,
+      p_notes: notes,
+      p_idempotency_key: idempotencyKey,
+    })
+
+    if (error) throw error
+    if (!result.success) throw new Error(result.error || 'Erro ao criar venda')
+
+    // Fetch the complete sale data
+    const { data: saleData, error: fetchError } = await supabase
       .from('sales')
-      .insert({
-        company_id: 'cmp_001', // Would come from auth context
-        sale_number: mockSaleNumber++,
-        customer_id: customerId,
-        operator_id: operatorId,
-        cash_register_id: cashRegisterId,
-        subtotal,
-        discount,
-        additional_expenses: additionalExpenses,
-        total,
-        status: 'completed',
-        notes,
-        sale_date: new Date().toISOString(),
-      })
-      .select()
+      .select(`
+        *,
+        sale_items (*),
+        payments (*)
+      `)
+      .eq('id', result.sale_id)
       .single()
 
-    if (saleError) throw saleError
-
-    // Insert sale items
-    const saleItems = items.map((item) => ({
-      sale_id: saleData.id,
-      product_id: item.productId,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      discount: item.discount,
-      total: item.subtotal,
-      cost_price: 0, // Would need to fetch from product
-    }))
-
-    const { error: itemsError } = await supabase.from('sale_items').insert(saleItems)
-    if (itemsError) throw itemsError
-
-    // Insert payments
-    const salePayments = payments.map((payment) => ({
-      sale_id: saleData.id,
-      method: payment.method,
-      amount: payment.amount,
-      installments: payment.installments,
-    }))
-
-    const { error: paymentsError } = await supabase.from('payments').insert(salePayments)
-    if (paymentsError) throw paymentsError
-
-    // Update stock for each item
-    for (const item of items) {
-      const { error: stockError } = await supabase.rpc('decrement_stock', {
-        p_product_id: item.productId,
-        p_quantity: item.quantity,
-      })
-      if (stockError) throw stockError
-    }
-
-    // Create cash movement
-    if (cashRegisterId) {
-      const cashAmount = payments
-        .filter((p) => p.method === 'cash')
-        .reduce((sum, p) => sum + p.amount, 0)
-
-      if (cashAmount > 0) {
-        const { error: cashError } = await supabase.from('cash_movements').insert({
-          cash_register_id: cashRegisterId,
-          company_id: 'cmp_001',
-          operator_id: operatorId,
-          type: 'sale',
-          amount: cashAmount,
-          description: `Venda #${saleData.sale_number}`,
-          reference_type: 'sale',
-          reference_id: saleData.id,
-          balance_after: 0, // Would need to calculate
-        })
-        if (cashError) throw cashError
-      }
-    }
-
-    // Create financial account (if sale is on credit)
-    const creditPayments = payments.filter((p) => p.method === 'credit_card' && p.installments > 1)
-    if (creditPayments.length > 0) {
-      // Create accounts receivable for each installment
-      // This is simplified - real implementation would be more complex
-    }
+    if (fetchError) throw fetchError
 
     return {
       id: saleData.id,
@@ -171,8 +125,20 @@ export async function createSale(params: {
       operatorId: saleData.operator_id,
       operatorName,
       cashRegisterId: saleData.cash_register_id,
-      items,
-      payments,
+      items: saleData.sale_items.map((item: any) => ({
+        productId: item.product_id,
+        productName: '', // Would need to join with products
+        quantity: item.quantity,
+        unitPrice: item.unit_price,
+        discount: item.discount,
+        subtotal: item.total,
+      })),
+      payments: saleData.payments.map((payment: any) => ({
+        method: payment.method,
+        amount: payment.amount,
+        installments: payment.installments,
+        changeAmount: 0,
+      })),
       subtotal: saleData.subtotal,
       discount: saleData.discount,
       additionalExpenses: saleData.additional_expenses,
@@ -299,56 +265,48 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
     return sale
   }
 
-  // Real Supabase implementation
+  // Real Supabase implementation - ATOMIC CANCELLATION
   try {
-    const { data, error } = await supabase
-      .from('sales')
-      .update({
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: reason,
-      })
-      .eq('id', saleId)
-      .select()
-      .single()
+    // Use atomic RPC function that handles full reversal
+    const { data: result, error } = await supabase.rpc('cancel_sale_with_reversal', {
+      p_sale_id: saleId,
+      p_company_id: 'cmp_001', // Would come from auth context
+      p_operator_id: 'usr_001', // Would come from auth context
+      p_reason: reason,
+    })
 
     if (error) throw error
+    if (!result.success) throw new Error(result.error || 'Erro ao cancelar venda')
 
-    // Restore stock
-    const { data: items } = await supabase.from('sale_items').select('*').eq('sale_id', saleId)
-    if (items) {
-      for (const item of items) {
-        await supabase.rpc('increment_stock', {
-          p_product_id: item.product_id,
-          p_quantity: item.quantity,
-        })
-      }
-    }
+    // Fetch the updated sale data
+    const { data: saleData, error: fetchError } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('id', saleId)
+      .single()
 
-    // Reverse cash movement
-    // Reverse financial accounts
-    // etc.
+    if (fetchError) throw fetchError
 
     return {
-      id: data.id,
-      companyId: data.company_id,
-      saleNumber: data.sale_number,
-      customerId: data.customer_id,
-      operatorId: data.operator_id,
+      id: saleData.id,
+      companyId: saleData.company_id,
+      saleNumber: saleData.sale_number,
+      customerId: saleData.customer_id,
+      operatorId: saleData.operator_id,
       operatorName: '',
-      cashRegisterId: data.cash_register_id,
+      cashRegisterId: saleData.cash_register_id,
       items: [],
       payments: [],
-      subtotal: data.subtotal,
-      discount: data.discount,
-      additionalExpenses: data.additional_expenses,
-      total: data.total,
-      status: data.status,
-      notes: data.notes,
-      createdAt: data.created_at,
-      completedAt: data.sale_date,
-      cancelledAt: data.cancelled_at,
-      cancellationReason: data.cancellation_reason,
+      subtotal: saleData.subtotal,
+      discount: saleData.discount,
+      additionalExpenses: saleData.additional_expenses,
+      total: saleData.total,
+      status: saleData.status,
+      notes: saleData.notes,
+      createdAt: saleData.created_at,
+      completedAt: saleData.sale_date,
+      cancelledAt: saleData.cancelled_at,
+      cancellationReason: saleData.cancellation_reason,
     }
   } catch (error) {
     console.error('Error cancelling sale:', error)

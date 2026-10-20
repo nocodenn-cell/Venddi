@@ -9,6 +9,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { ProductsPage } from '@/pages/ProductsPage'
 import { PDVPage } from '@/pages/PDVPage'
 import { CashRegisterPage } from '@/pages/CashRegisterPage'
+import { FinancialPage } from '@/pages/FinancialPage'
+import { ManagementDashboardPage } from '@/pages/ManagementDashboardPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -58,13 +60,14 @@ export function AppRouter() {
           <Route path="pdv" element={<PDVPage />} />
           
           {/* Gestão e Administração */}
-          <Route path="gestao" element={<DashboardPage />} />
+          <Route path="gestao" element={<ManagementDashboardPage />} />
           <Route path="produtos" element={<ProductsPage />} />
           <Route path="estoque" element={<PlaceholderPage title="Estoque" description="Controle de estoque e movimentações" />} />
           <Route path="vendas" element={<PlaceholderPage title="Vendas" description="Histórico de vendas" />} />
           <Route path="caixas" element={<CashRegisterPage />} />
+          <Route path="financeiro" element={<FinancialPage />} />
           <Route path="funcionarios" element={<PlaceholderPage title="Funcionários" description="Gestão de equipe e permissões" />} />
-          <Route path="relatorios" element={<PlaceholderPage title="Relatórios" description="Indicadores e dashboards" />} />
+          <Route path="relatorios" element={<ManagementDashboardPage />} />
           <Route path="configuracoes" element={<PlaceholderPage title="Configurações" description="Configurações da loja" />} />
         </Route>
 
