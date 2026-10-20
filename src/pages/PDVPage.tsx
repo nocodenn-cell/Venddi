@@ -412,43 +412,10 @@ export function PDVPage() {
 
                   setLastSale(sale)
 
-                  // Step 2: Emit NFC-e (fiscal document)
-                  if (company) {
-                    setFiscalStatus('emitting')
-                    setFiscalMessage('Emitindo NFC-e...')
-
-                    try {
-                      const fiscalResult = await emitNfceForSale({
-                        companyId: company.id,
-                        saleId: sale.id,
-                        saleNumber: sale.saleNumber,
-                        items: cart.map(item => ({
-                          productId: item.id,
-                          productName: item.name,
-                          quantity: item.quantity,
-                          unitPrice: item.price,
-                        })),
-                        payments: payments.map(p => ({
-                          method: p.method,
-                          amount: p.amount,
-                        })),
-                        total: sale.total,
-                        discount: sale.discount,
-                        useMock: true, // Use mock for now (no real Focus NFe credentials)
-                      })
-
-                      if (fiscalResult.success) {
-                        setFiscalStatus('success')
-                        setFiscalMessage(`NFC-e emitida com sucesso! Chave: ${fiscalResult.fiscalDocument?.accessKey || 'N/A'}`)
-                      } else {
-                        setFiscalStatus('error')
-                        setFiscalMessage(`Erro ao emitir NFC-e: ${fiscalResult.error || 'Erro desconhecido'}`)
-                      }
-                    } catch (fiscalErr) {
-                      setFiscalStatus('error')
-                      setFiscalMessage(`Erro ao emitir NFC-e: ${fiscalErr instanceof Error ? fiscalErr.message : 'Erro desconhecido'}`)
-                    }
-                  }
+                  // Step 2: Fiscal emission DISABLED (Feature Flag: FISCAL_ENABLED = false)
+                  // Module frozen per founder decision - will be re-enabled in future phase
+                  setFiscalStatus('idle')
+                  setFiscalMessage('')
 
                   setCart([])
                   setPayments([])

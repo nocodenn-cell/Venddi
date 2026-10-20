@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
+import { TrialStatusBanner } from '../TrialStatusBanner'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Bell, Search } from 'lucide-react'
@@ -40,6 +41,9 @@ export function AdminLayout() {
             </button>
           </div>
         </header>
+
+        {/* Trial Status Banner */}
+        <TrialStatusBanner />
 
         {/* Main Content */}
         <main className="p-6">
