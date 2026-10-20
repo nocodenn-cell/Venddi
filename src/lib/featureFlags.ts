@@ -4,7 +4,11 @@
  * Controla quais funcionalidades estão habilitadas no sistema.
  * 
  * IMPORTANTE: Este arquivo NÃO deve conter tokens, credenciais ou segredos.
- * Todas as flags são avaliadas no backend para segurança.
+ *
+ * Estas flags servem SOMENTE para a interface (esconder/mostrar telas).
+ * A decisão que vale é do servidor: tabela platform_feature_flags e a RPC
+ * get_company_entitlements() (migration 012), que também bloqueia vendas de
+ * empresas sem liberação. Use getServerEntitlements() em src/lib/api/entitlements.ts.
  */
 
 // ============================================
@@ -69,11 +73,14 @@ export const FEATURE_FLAGS: Record<string, FeatureFlag> = {
     requiresBackendValidation: false,
   },
 
-  // Trial & Subscription - ENABLED
+  // Trial & Subscription
+  // Sem teste grátis automático: a avaliação é liberada pela equipe após contato
+  // comercial (servidor: AUTO_TRIAL = false, assinatura nasce "pending").
+  // O nome da chave foi mantido para não quebrar quem a consulta.
   TRIAL_15_DAYS: {
     name: 'TRIAL_15_DAYS',
-    enabled: true, // ✅ HABILITADO
-    description: 'Trial de 15 dias - Cadastro e avaliação gratuita',
+    enabled: false, // ❌ DESABILITADO - avaliação liberada manualmente
+    description: 'Teste automático desativado. Avaliação liberada pela equipe após contato comercial.',
     requiresBackendValidation: true,
   },
 
@@ -184,6 +191,9 @@ export function validateFeaturePermission(operation: string): boolean {
 // ============================================
 // Backend Validation Guard
 // ============================================
+// ATENÇÃO: apesar do nome, este guard roda no navegador e NÃO é controle de
+// segurança (pode ser contornado). Ele só evita chamadas inúteis na interface.
+// A autorização real está no banco (RLS + RPCs SECURITY DEFINER da migration 012).
 
 /**
  * Guard para operações que requerem validação no backend
@@ -266,3 +276,4 @@ export default {
   backendValidationGuard,
   getFeatureFlagsReport,
 }
+
