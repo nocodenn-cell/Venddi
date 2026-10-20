@@ -33,11 +33,22 @@ export function SignUpPage() {
     resolver: zodResolver(registerSchema),
   })
 
+  const [notice, setNotice] = useState<string | null>(null)
+
   const onSubmit = async (data: RegisterInput) => {
     try {
       setError(null)
-      await registerUser(data)
-      navigate('/app/pdv')
+      setNotice(null)
+      const result = await registerUser(data)
+      if (result.status === 'demo') {
+        navigate('/app/pdv')
+        return
+      }
+      setNotice(
+        result.status === 'confirm_email'
+          ? 'Conta criada. Confirme seu e-mail. Depois, nossa equipe libera o acesso da sua loja.'
+          : 'Conta criada. Nossa equipe vai liberar o acesso da sua loja e avisar você.'
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta')
     }
@@ -60,6 +71,12 @@ export function SignUpPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {notice && (
+              <div role="status" className="p-3 rounded-lg bg-[#D1FAE5] border border-[#0EA572]/30 text-sm text-[#087A54]">
+                {notice}
+              </div>
+            )}
+
             {error && (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
                 {error}
@@ -145,3 +162,4 @@ export function SignUpPage() {
     </div>
   )
 }
+

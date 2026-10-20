@@ -78,9 +78,9 @@ export async function createSale(params: {
   // Real Supabase implementation - ATOMIC TRANSACTION
   try {
     // Use atomic RPC function that handles everything in a single transaction
+    // Empresa e operador são derivados no servidor a partir do usuário autenticado
+    // (auth.uid() -> users). O navegador não envia company_id. Ver migration 012.
     const { data: result, error } = await supabase.rpc('create_atomic_sale', {
-      p_company_id: 'cmp_001', // Would come from auth context
-      p_operator_id: operatorId,
       p_cash_register_id: cashRegisterId,
       p_customer_id: customerId,
       p_items: items.map((item) => ({
@@ -270,8 +270,6 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
     // Use atomic RPC function that handles full reversal
     const { data: result, error } = await supabase.rpc('cancel_sale_with_reversal', {
       p_sale_id: saleId,
-      p_company_id: 'cmp_001', // Would come from auth context
-      p_operator_id: 'usr_001', // Would come from auth context
       p_reason: reason,
     })
 
@@ -313,3 +311,4 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
     throw new Error('Erro ao cancelar venda')
   }
 }
+
