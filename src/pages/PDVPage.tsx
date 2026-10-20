@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText, Keyboard } from 'lucide-react'
 import { createSale } from '@/lib/api/sales'
 import { getOpenCashRegister } from '@/lib/api/cashRegister'
 import { emitNfceForSale } from '@/lib/api/fiscal'
 import { useAuthStore } from '@/lib/store/auth'
 import { v4 as uuidv4 } from 'uuid'
+import { QuickProductSearch } from '@/components/QuickProductSearch'
+import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '@/components/KeyboardShortcuts'
+import { ContinuousSaleMode } from '@/components/ContinuousSaleMode'
 
 interface CartItem {
   id: string
@@ -34,6 +37,42 @@ export function PDVPage() {
   const [lastSale, setLastSale] = useState<any>(null)
   const [fiscalStatus, setFiscalStatus] = useState<'idle' | 'emitting' | 'success' | 'error'>('idle')
   const [fiscalMessage, setFiscalMessage] = useState<string>('')
+  const [continuousMode, setContinuousMode] = useState(false)
+  const [continuousSalesCount, setContinuousSalesCount] = useState(0)
+
+  // Keyboard shortcuts
+  const { isModalOpen: showShortcutsHelp, setIsModalOpen: setShowShortcutsHelp } = useKeyboardShortcuts({
+    onQuickSale: () => {
+      if (cart.length > 0) {
+        setShowPaymentModal(true)
+      }
+    },
+    onSearch: () => {
+      // Focus on search input
+      const searchInput = document.querySelector('input[placeholder*="Buscar"]') as HTMLInputElement
+      if (searchInput) {
+        searchInput.focus()
+      }
+    },
+    onPayment: () => {
+      if (cart.length > 0) {
+        setShowPaymentModal(true)
+      }
+    },
+    onFinish: () => {
+      if (cart.length > 0 && !showPaymentModal) {
+        setShowPaymentModal(true)
+      }
+    },
+    onCancel: () => {
+      if (showPaymentModal) {
+        setShowPaymentModal(false)
+      } else if (cart.length > 0) {
+        setCart([])
+      }
+    },
+    enabled: true,
+  })
 
   // Check if cash register is open
   useEffect(() => {
@@ -102,18 +141,36 @@ export function PDVPage() {
     <div className="h-[calc(100vh-4rem)] flex gap-4">
       {/* Left Side - Products */}
       <div className="flex-1 flex flex-col">
+        {/* Header with Continuous Mode and Shortcuts */}
+        <div className="flex items-center justify-between mb-4">
+          <ContinuousSaleMode
+            isActive={continuousMode}
+            onToggle={() => setContinuousMode(!continuousMode)}
+            salesCount={continuousSalesCount}
+          />
+          <button
+            onClick={() => setShowShortcutsHelp(true)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Atalhos de teclado (Shift + ?)"
+          >
+            <Keyboard className="h-4 w-4" />
+            <span className="hidden md:inline">Atalhos</span>
+          </button>
+        </div>
+
+        {/* Quick Product Search */}
         <div className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar produto por nome ou SKU..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-lg border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-[#0EA572] focus:border-[#0EA572]"
-              autoFocus
-            />
-          </div>
+          <QuickProductSearch
+            onProductSelect={(product) => {
+              addToCart({
+                id: product.id,
+                name: product.name,
+                sku: product.sku,
+                price: product.sellPrice,
+              })
+            }}
+            autoFocus={!continuousMode}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -417,9 +474,17 @@ export function PDVPage() {
                   setFiscalStatus('idle')
                   setFiscalMessage('')
 
-                  setCart([])
-                  setPayments([])
-                  setShowPaymentModal(false)
+                  // Handle continuous mode
+                  if (continuousMode) {
+                    setContinuousSalesCount(prev => prev + 1)
+                    setPayments([])
+                    setShowPaymentModal(false)
+                    // Keep cart for continuous sales
+                  } else {
+                    setCart([])
+                    setPayments([])
+                    setShowPaymentModal(false)
+                  }
                   
                   // Show success message
                   const fiscalInfo = fiscalStatus === 'success' ? '\n\n✅ NFC-e emitida com sucesso!' : 
@@ -445,6 +510,12 @@ export function PDVPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp
+        isOpen={showShortcutsHelp}
+        onClose={() => setShowShortcutsHelp(false)}
+      />
     </div>
   )
 }

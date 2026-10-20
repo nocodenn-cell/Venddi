@@ -49,6 +49,7 @@ const menuItems = [
       { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permission: 'reports.read' },
       { icon: TrendingUp, label: 'BI', path: '/app/bi', permission: 'reports.read' },
       { icon: HelpCircle, label: 'Central de Ajuda', path: '/app/ajuda', permission: 'settings.read' },
+      { icon: Settings, label: 'Hardware', path: '/app/hardware', permission: 'settings.read' },
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes', permission: 'settings.read' },
     ]
   },

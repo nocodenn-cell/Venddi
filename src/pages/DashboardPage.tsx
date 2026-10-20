@@ -1,6 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Badge } from '@/components/ui'
 import { SetupChecklist } from '@/components/SetupChecklist'
+import { SalesTrendChart } from '@/components/SalesTrendChart'
+import { LowStockAlerts } from '@/components/LowStockAlerts'
+import { AdvancedFilters, DashboardFilters } from '@/components/AdvancedFilters'
+import { ExportButton } from '@/components/ExportButton'
+import { useAuthStore } from '@/lib/store/auth'
 import {
   DollarSign,
   ShoppingCart,
@@ -10,6 +15,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react'
+import { useState } from 'react'
 
 // Mock data - will be replaced with real data from API
 const mockData = {
@@ -24,19 +30,42 @@ const mockData = {
 }
 
 export function DashboardPage() {
+  const { company } = useAuthStore()
+  const [filters, setFilters] = useState<DashboardFilters>({
+    dateRange: 'today',
+  })
+
   const salesChange = ((mockData.salesToday - mockData.salesYesterday) / mockData.salesYesterday) * 100
   const ordersChange = ((mockData.ordersToday - mockData.ordersYesterday) / mockData.ordersYesterday) * 100
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Visão geral do seu negócio</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Visão geral do seu negócio</p>
+        </div>
+        <ExportButton
+          data={[]}
+          filename="dashboard-report"
+          columns={[
+            { key: 'metric', label: 'Métrica' },
+            { key: 'value', label: 'Valor' },
+          ]}
+        />
       </div>
 
       {/* Setup Checklist */}
       <SetupChecklist />
+
+      {/* Advanced Filters */}
+      <AdvancedFilters
+        filters={filters}
+        onFiltersChange={setFilters}
+        operators={['João Silva', 'Maria Santos', 'Pedro Oliveira']}
+        categories={['Vestuário', 'Calçados', 'Acessórios']}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -163,6 +192,12 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sales Trend Chart */}
+      {company && <SalesTrendChart companyId={company.id} />}
+
+      {/* Low Stock Alerts */}
+      {company && <LowStockAlerts companyId={company.id} />}
     </div>
   )
 }
