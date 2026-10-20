@@ -1,0 +1,2 @@
+# Venddi
+plataforma de Vendas 
