@@ -252,7 +252,12 @@ export async function getSales(params: {
 /**
  * Cancel a sale
  */
-export async function cancelSale(saleId: string, reason: string): Promise<Sale> {
+export async function cancelSale(
+  saleId: string,
+  reason: string,
+  companyId?: string,
+  operatorId?: string
+): Promise<Sale> {
   if (!isSupabaseConfigured || !supabase) {
     // Mock mode
     await new Promise((resolve) => setTimeout(resolve, 500))
@@ -268,12 +273,12 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
   }
 
   // Real Supabase implementation - ATOMIC CANCELLATION
+  // Note: The hardened RPC uses auth.uid() for operator validation
   try {
     // Use atomic RPC function that handles full reversal
+    // The new RPC signature only requires saleId and reason
     const { data: result, error } = await supabase.rpc('cancel_sale_with_reversal', {
       p_sale_id: saleId,
-      p_company_id: 'cmp_001', // Would come from auth context
-      p_operator_id: 'usr_001', // Would come from auth context
       p_reason: reason,
     })
 
