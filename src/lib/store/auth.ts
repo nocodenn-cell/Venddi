@@ -1,19 +1,8 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import type { User, Company, UserRole } from '@/lib/schemas'
+import type { User, Company } from '@/lib/schemas'
 import { hasPermission } from '@/lib/schemas'
-
-interface AuthState {
-  user: User | null
-  company: Company | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  login: (email: string, password: string) => Promise<void>
-  logout: () => void
-  register: (data: RegisterData) => Promise<void>
-  switchCompany: (company: Company) => void
-  checkPermission: (permission: string) => boolean
-}
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { signIn, signUp, signOut, getAuthenticatedContext } from '@/lib/services/auth'
 
 interface RegisterData {
   fullName: string
@@ -23,16 +12,19 @@ interface RegisterData {
   cnpj: string
 }
 
-// Mock data for development
-const mockUser: User = {
-  id: 'usr_001',
-  companyId: 'cmp_001',
-  email: 'admin@venddi.com',
-  fullName: 'Administrador Venddi',
-  role: 'owner' as UserRole,
-  isActive: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+interface AuthState {
+  user: User | null
+  company: Company | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  isInitialized: boolean
+  clearSession: () => void
+  initialize: () => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+  register: (data: RegisterData) => Promise<void>
+  switchCompany: (company: Company) => void
+  checkPermission: (permission: string) => boolean
 }
 
 const mockCompany: Company = {
@@ -48,89 +40,105 @@ const mockCompany: Company = {
   updatedAt: new Date().toISOString(),
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      company: null,
-      isAuthenticated: false,
-      isLoading: false,
 
-      login: async (email: string, _password: string) => {
-        set({ isLoading: true })
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 800))
+const emptySession = { user: null, company: null, isAuthenticated: false }
+let revision = 0
 
-        // Mock authentication
-        if (email === 'admin@venddi.com') {
-          set({
-            user: mockUser,
-            company: mockCompany,
-            isAuthenticated: true,
-            isLoading: false,
-          })
-        } else {
-          set({ isLoading: false })
-          throw new Error('Credenciais inválidas')
-        }
-      },
+// The SDK owns session persistence. Persisted UI flags and roles are not trusted.
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  ...emptySession,
+  isLoading: false,
+  isInitialized: false,
 
-      logout: () => {
-        set({
-          user: null,
-          company: null,
-          isAuthenticated: false,
-        })
-      },
+  clearSession: () => {
+    ++revision
+    set({ ...emptySession, isLoading: false, isInitialized: true })
+  },
 
-      register: async (data: RegisterData) => {
-        set({ isLoading: true })
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        const newUser: User = {
-          id: `usr_${Date.now()}`,
-          companyId: `cmp_${Date.now()}`,
-          email: data.email,
-          fullName: data.fullName,
-          role: 'owner',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-
-        const newCompany: Company = {
-          id: newUser.companyId,
-          name: data.companyName,
-          cnpj: data.cnpj,
-          plan: 'starter',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-
-        set({
-          user: newUser,
-          company: newCompany,
-          isAuthenticated: true,
-          isLoading: false,
-        })
-      },
-
-      switchCompany: (company: Company) => {
-        set({ company })
-      },
-
-      checkPermission: (permission: string) => {
-        const { user } = get()
-        if (!user) return false
-        return hasPermission(user.role, permission)
-      },
-    }),
-    {
-      name: 'venddi-auth',
+  initialize: async () => {
+    const current = ++revision
+    set({ isLoading: true })
+    try {
+      if (isSupabaseConfigured) {
+        const context = await getAuthenticatedContext()
+        if (current === revision) set({ ...context, isAuthenticated: true })
+      } else if (current === revision) {
+        set(emptySession)
+      }
+    } catch {
+      if (current === revision) set(emptySession)
+    } finally {
+      if (current === revision) set({ isLoading: false, isInitialized: true })
     }
-  )
-)
+  },
+
+  login: async (email, password) => {
+    const current = ++revision
+    set({ ...emptySession, isLoading: true })
+    try {
+      const result = await signIn(email.trim(), password)
+      if (result.error || !result.user || !result.user.isActive) {
+        throw new Error(result.error || 'Usuário sem acesso ativo')
+      }
+      if (current !== revision) throw new Error('Operação de login interrompida')
+      if (isSupabaseConfigured && !result.company) {
+        throw new Error('Não foi possível carregar a loja')
+      }
+      set({
+        user: result.user,
+        company: result.company ?? mockCompany,
+        isAuthenticated: true,
+      })
+    } finally {
+      if (current === revision) set({ isLoading: false, isInitialized: true })
+    }
+  },
+
+  logout: async () => {
+    const current = ++revision
+    set({ ...emptySession, isLoading: true, isInitialized: true })
+    try {
+      await signOut()
+    } finally {
+      if (current === revision) set({ isLoading: false })
+    }
+  },
+
+  register: async (data) => {
+    const current = ++revision
+    set({ ...emptySession, isLoading: true })
+    try {
+      const result = await signUp(data)
+      if (current !== revision) throw new Error('Cadastro interrompido')
+      if (result.error || !result.user || !result.user.isActive) {
+        throw new Error(result.error || 'Não foi possível criar a conta')
+      }
+      if (isSupabaseConfigured) {
+        const context = await getAuthenticatedContext()
+        if (current !== revision) throw new Error('Cadastro interrompido')
+        set({ ...context, isAuthenticated: true })
+      } else {
+        set({
+          user: result.user,
+          company: { ...mockCompany, id: result.user.companyId, name: data.companyName, cnpj: data.cnpj },
+          isAuthenticated: true,
+        })
+      }
+    } finally {
+      if (current === revision) set({ isLoading: false, isInitialized: true })
+    }
+  },
+
+  switchCompany: (company) => {
+    // The current schema supports one company per user.
+    if (!get().user || company.id !== get().user?.companyId) {
+      throw new Error('Troca de loja não autorizada')
+    }
+    // Do not replace trusted company attributes with caller-provided data.
+  },
+
+  checkPermission: (permission) => {
+    const { user, isAuthenticated } = get()
+    return Boolean(isAuthenticated && user?.isActive && hasPermission(user.role, permission))
+  },
+}))

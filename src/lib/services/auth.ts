@@ -1,5 +1,5 @@
-import { supabase, getSupabase, isSupabaseConfigured } from '@/lib/supabase'
-import type { User } from '@/lib/schemas'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import type { User, Company } from '@/lib/schemas'
 
 export interface SignUpData {
   email: string
@@ -12,6 +12,7 @@ export interface SignUpData {
 export interface AuthResponse {
   user: User | null
   error: string | null
+  company?: Company
 }
 
 // Mock users for development (when Supabase is not configured)
@@ -58,63 +59,11 @@ export async function signUp(data: SignUpData): Promise<AuthResponse> {
     return { user: newUser, error: null }
   }
   
-  try {
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-    })
-    
-    if (authError) throw authError
-    if (!authData.user) throw new Error('Erro ao criar usuário')
-    
-    // Create company
-    const { data: companyData, error: companyError } = await supabase
-      .from('companies')
-      .insert({
-        name: data.companyName,
-        cnpj: data.cnpj,
-        plan: 'starter',
-        status: 'active',
-      })
-      .select()
-      .single()
-    
-    if (companyError) throw companyError
-    
-    // Create user record
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .insert({
-        company_id: companyData.id,
-        auth_id: authData.user.id,
-        email: data.email,
-        full_name: data.fullName,
-        role: 'owner',
-        is_active: true,
-      })
-      .select()
-      .single()
-    
-    if (userError) throw userError
-    
-    const user: User = {
-      id: userData.id,
-      companyId: userData.company_id,
-      email: userData.email,
-      fullName: userData.full_name,
-      role: userData.role,
-      isActive: userData.is_active,
-      createdAt: userData.created_at,
-      updatedAt: userData.updated_at,
-    }
-    
-    return { user, error: null }
-  } catch (error) {
-    return {
-      user: null,
-      error: error instanceof Error ? error.message : 'Erro ao criar conta',
-    }
+  // Company provisioning needs an authenticated, atomic backend operation.
+  // Direct client inserts are blocked by the current RLS bootstrap policies.
+  return {
+    user: null,
+    error: 'O cadastro de novas lojas ainda não está disponível. Entre em contato para ativar sua loja.',
   }
 }
 
@@ -152,32 +101,10 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
     if (authError) throw authError
     if (!authData.user) throw new Error('Erro ao autenticar')
     
-    // Get user record from database
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select(`
-        *,
-        companies (*)
-      `)
-      .eq('auth_id', authData.user.id)
-      .single()
-    
-    if (userError) throw userError
-    if (!userData) throw new Error('Usuário não encontrado')
-    
-    const user: User = {
-      id: userData.id,
-      companyId: userData.company_id,
-      email: userData.email,
-      fullName: userData.full_name,
-      role: userData.role,
-      isActive: userData.is_active,
-      createdAt: userData.created_at,
-      updatedAt: userData.updated_at,
-    }
-    
-    return { user, error: null }
+    const context = await getAuthenticatedContext()
+    return { ...context, error: null }
   } catch (error) {
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
     return {
       user: null,
       error: error instanceof Error ? error.message : 'Erro ao fazer login',
@@ -252,4 +179,58 @@ export async function getCurrentAuthUser() {
   
   const { data: { user } } = await supabase.auth.getUser()
   return user
+}
+
+
+/** Resolve operational identity from Auth and the database, never from localStorage.
+ * Backend RPCs must independently enforce the same identity and permissions.
+ */
+export async function getAuthenticatedContext(): Promise<{ user: User; company: Company }> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Autenticação real indisponível')
+  }
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError || !authData.user) throw new Error('Sessão inválida. Entre novamente.')
+
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .select('id, company_id, email, full_name, role, is_active, created_at, updated_at')
+    .eq('auth_id', authData.user.id)
+    .single()
+  if (profileError || !profile || !profile.is_active) {
+    throw new Error('Usuário sem acesso ativo à loja')
+  }
+  const roles = ['owner', 'admin', 'manager', 'cashier', 'salesperson']
+  if (!roles.includes(profile.role)) throw new Error('Perfil de acesso inválido')
+
+  const { data: row, error: companyError } = await supabase
+    .from('companies')
+    .select('id, name, trade_name, cnpj, plan, status, created_at, updated_at')
+    .eq('id', profile.company_id)
+    .single()
+  if (companyError || !row || row.status !== 'active') {
+    throw new Error('Loja indisponível ou suspensa')
+  }
+  return {
+    user: {
+      id: profile.id,
+      companyId: profile.company_id,
+      email: profile.email,
+      fullName: profile.full_name,
+      role: profile.role,
+      isActive: true,
+      createdAt: profile.created_at,
+      updatedAt: profile.updated_at,
+    },
+    company: {
+      id: row.id,
+      name: row.name,
+      tradeName: row.trade_name ?? undefined,
+      cnpj: row.cnpj,
+      plan: row.plan,
+      isActive: true,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    },
+  }
 }

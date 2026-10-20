@@ -1,3 +1,5 @@
+import { getAuthenticatedContext } from '@/lib/services/auth'
+import { hasPermission } from '@/lib/schemas'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import type { Sale, SaleItem, Payment } from '@/lib/schemas/sales'
 import { v4 as uuidv4 } from 'uuid'
@@ -77,10 +79,15 @@ export async function createSale(params: {
 
   // Real Supabase implementation - ATOMIC TRANSACTION
   try {
+    const context = await getAuthenticatedContext()
+    if (!hasPermission(context.user.role, 'sales.write')) {
+      throw new Error('Sem permissão para realizar vendas')
+    }
+    // Backend must independently authenticate and authorize this operation.
     // Use atomic RPC function that handles everything in a single transaction
     const { data: result, error } = await supabase.rpc('create_atomic_sale', {
-      p_company_id: 'cmp_001', // Would come from auth context
-      p_operator_id: operatorId,
+      p_company_id: context.company.id,
+      p_operator_id: context.user.id,
       p_cash_register_id: cashRegisterId,
       p_customer_id: customerId,
       p_items: items.map((item) => ({
@@ -108,10 +115,11 @@ export async function createSale(params: {
       .from('sales')
       .select(`
         *,
-        sale_items (*),
+        sale_items (product_id, quantity, unit_price, discount, total),
         payments (*)
       `)
       .eq('id', result.sale_id)
+      .eq('company_id', context.company.id)
       .single()
 
     if (fetchError) throw fetchError
@@ -196,7 +204,11 @@ export async function getSales(params: {
 
   // Real Supabase implementation
   try {
-    let query = supabase.from('sales').select('*', { count: 'exact' })
+    const context = await getAuthenticatedContext()
+    if (!hasPermission(context.user.role, 'sales.read')) {
+      throw new Error('Sem permissão para consultar vendas')
+    }
+    let query = supabase.from('sales').select('*', { count: 'exact' }).eq('company_id', context.company.id)
 
     if (cashRegisterId) {
       query = query.eq('cash_register_id', cashRegisterId)
@@ -267,11 +279,15 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
 
   // Real Supabase implementation - ATOMIC CANCELLATION
   try {
+    const context = await getAuthenticatedContext()
+    if (!hasPermission(context.user.role, 'sales.cancel')) {
+      throw new Error('Sem permissão para cancelar vendas')
+    }
     // Use atomic RPC function that handles full reversal
     const { data: result, error } = await supabase.rpc('cancel_sale_with_reversal', {
       p_sale_id: saleId,
-      p_company_id: 'cmp_001', // Would come from auth context
-      p_operator_id: 'usr_001', // Would come from auth context
+      p_company_id: context.company.id,
+      p_operator_id: context.user.id,
       p_reason: reason,
     })
 
@@ -283,6 +299,7 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
       .from('sales')
       .select('*')
       .eq('id', saleId)
+      .eq('company_id', context.company.id)
       .single()
 
     if (fetchError) throw fetchError

@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store/auth'
 import { AdminLayout } from '@/components/layout/AdminLayout'
@@ -16,7 +18,8 @@ import { HardwareSettingsPage } from '@/pages/HardwareSettingsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, isInitialized, isLoading } = useAuthStore()
+  if (!isInitialized || isLoading) return <p role="status">Verificando acesso…</p>
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
@@ -26,7 +29,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, isInitialized } = useAuthStore()
+  if (!isInitialized) return <p role="status">Verificando acesso…</p>
   
   if (isAuthenticated) {
     return <Navigate to="/app/pdv" replace />
@@ -36,6 +40,17 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function AppRouter() {
+  useEffect(() => {
+    void useAuthStore.getState().initialize()
+    const listener = supabase?.auth.onAuthStateChange((event) => {
+      // Do not call Auth methods from inside the synchronous SDK callback.
+      if (event === 'SIGNED_OUT') {
+        // Invalidate any in-flight restoration before clearing application state.
+        useAuthStore.getState().clearSession()
+      }
+    })
+    return () => listener?.data.subscription.unsubscribe()
+  }, [])
   return (
     <BrowserRouter>
       <Routes>

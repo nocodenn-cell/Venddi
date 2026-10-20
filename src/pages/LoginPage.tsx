@@ -1,3 +1,4 @@
+import { isMockMode } from '@/lib/supabase'
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -23,7 +24,7 @@ export function LoginPage() {
     try {
       setError(null)
       await login(data.email, data.password)
-      navigate('/app/dashboard')
+      navigate('/app/pdv')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao fazer login')
     }
@@ -89,9 +90,9 @@ export function LoginPage() {
               </Link>
             </div>
 
-            <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700">
-              <strong>Demo:</strong> admin@venddi.com / admin123
-            </div>
+            {isMockMode() && <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700">
+              <strong>Demonstração sem persistência:</strong> admin@venddi.com / admin123
+            </div>}
           </form>
         </CardContent>
       </Card>
