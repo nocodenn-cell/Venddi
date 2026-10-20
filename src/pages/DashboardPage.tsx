@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Badge } from '@/components/ui'
+import { SetupChecklist } from '@/components/SetupChecklist'
 import {
   DollarSign,
   ShoppingCart,
@@ -33,6 +34,9 @@ export function DashboardPage() {
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">Visão geral do seu negócio</p>
       </div>
+
+      {/* Setup Checklist */}
+      <SetupChecklist />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -30,7 +30,7 @@ export async function createTrialSubscription(params: {
         plan,
         trial_started_at: trialStartedAt,
         trial_end_date: trialEndDate,
-        trial_days: 15,
+        trial_days: 30,
         status: 'trial',
       })
       .select()

@@ -11,6 +11,7 @@ import { PDVPage } from '@/pages/PDVPage'
 import { CashRegisterPage } from '@/pages/CashRegisterPage'
 import { FinancialPage } from '@/pages/FinancialPage'
 import { ManagementDashboardPage } from '@/pages/ManagementDashboardPage'
+import { HelpCenterPage } from '@/pages/HelpCenterPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -68,6 +69,7 @@ export function AppRouter() {
           <Route path="financeiro" element={<FinancialPage />} />
           <Route path="funcionarios" element={<PlaceholderPage title="Funcionários" description="Gestão de equipe e permissões" />} />
           <Route path="relatorios" element={<ManagementDashboardPage />} />
+          <Route path="ajuda" element={<HelpCenterPage />} />
           <Route path="configuracoes" element={<PlaceholderPage title="Configurações" description="Configurações da loja" />} />
         </Route>
 

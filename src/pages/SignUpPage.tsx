@@ -56,7 +56,7 @@ export function SignUpPage() {
             </div>
           </div>
           <CardTitle className="text-2xl">Comece seu teste grátis</CardTitle>
-          <CardDescription>15 dias grátis. Sem cartão de crédito.</CardDescription>
+          <CardDescription>30 dias grátis. Sem cartão de crédito.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -68,7 +68,7 @@ export function SignUpPage() {
 
             <div className="bg-[#D1FAE5] border border-[#0EA572]/30 rounded-lg p-3 mb-4">
               <p className="text-sm text-[#087A54] font-medium">
-                ✨ Você terá acesso completo por 15 dias, sem precisar cadastrar cartão.
+                ✨ Você terá acesso completo por 30 dias, sem precisar cadastrar cartão.
               </p>
             </div>
 

@@ -56,11 +56,11 @@ export type CompanySubscription = z.infer<typeof companySubscriptionSchema>
 // ============================================
 
 /**
- * Calcula a data de fim do trial (15 dias a partir de agora)
+ * Calcula a data de fim do trial (30 dias a partir de agora)
  */
 export function calculateTrialEndDate(startDate: Date = new Date()): Date {
   const endDate = new Date(startDate)
-  endDate.setDate(endDate.getDate() + 15)
+  endDate.setDate(endDate.getDate() + 30)
   return endDate
 }
 

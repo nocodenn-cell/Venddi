@@ -16,7 +16,7 @@ CREATE TABLE company_subscriptions (
   -- Trial
   trial_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   trial_end_date TIMESTAMPTZ NOT NULL,
-  trial_days INTEGER NOT NULL DEFAULT 15,
+  trial_days INTEGER NOT NULL DEFAULT 30,
   
   -- Status
   status VARCHAR(20) NOT NULL CHECK (status IN ('trial', 'active', 'expired', 'suspended', 'canceled')),

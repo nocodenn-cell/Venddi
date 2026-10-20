@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Receipt,
   BarChart3,
+  HelpCircle,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -47,6 +48,7 @@ const menuItems = [
       { icon: DollarSign, label: 'Financeiro', path: '/app/financeiro', permission: 'financial.read' },
       { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permission: 'reports.read' },
       { icon: TrendingUp, label: 'BI', path: '/app/bi', permission: 'reports.read' },
+      { icon: HelpCircle, label: 'Central de Ajuda', path: '/app/ajuda', permission: 'settings.read' },
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes', permission: 'settings.read' },
     ]
   },

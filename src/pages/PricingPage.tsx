@@ -6,12 +6,12 @@ export function PricingPage() {
   const plans = [
     {
       name: 'Starter',
-      price: 'R$ 79',
+      price: 'R$ 49',
       period: '/mês',
       description: 'Para lojas que estão começando',
       features: [
         '1 ponto de venda (PDV)',
-        'Até 500 produtos',
+        'Até 300 produtos',
         'Controle de estoque básico',
         'Relatórios de vendas',
         'Fechamento de caixa',
@@ -22,7 +22,7 @@ export function PricingPage() {
     },
     {
       name: 'Professional',
-      price: 'R$ 149',
+      price: 'R$ 99',
       period: '/mês',
       description: 'Para lojas em crescimento',
       features: [
@@ -39,7 +39,7 @@ export function PricingPage() {
     },
     {
       name: 'Business',
-      price: 'R$ 249',
+      price: 'R$ 199',
       period: '/mês',
       description: 'Para redes e múltiplas lojas',
       features: [
@@ -92,7 +92,7 @@ export function PricingPage() {
             <span className="text-[#0EA572]">vendas sem complicação</span>
           </h1>
           <p className="text-lg text-gray-600 mb-8">
-            Comece com 15 dias grátis. Sem cartão de crédito. Cancele quando quiser.
+            Comece com 30 dias grátis. Sem cartão de crédito. Cancele quando quiser.
           </p>
         </div>
       </section>
@@ -170,10 +170,10 @@ export function PricingPage() {
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Como funciona o teste grátis de 15 dias?
+                Como funciona o teste grátis de 30 dias?
               </h3>
               <p className="text-gray-600">
-                Você cria sua conta e tem acesso completo ao Venddi por 15 dias, sem precisar 
+                Você cria sua conta e tem acesso completo ao Venddi por 30 dias, sem precisar 
                 cadastrar cartão de crédito. Ao final do período, você pode escolher um plano 
                 pago ou simplesmente não continuar, sem nenhum custo.
               </p>
@@ -219,7 +219,7 @@ export function PricingPage() {
             Pronto para começar?
           </h2>
           <p className="text-lg text-white/90 mb-8">
-            Crie sua conta agora e teste grátis por 15 dias.
+            Crie sua conta agora e teste grátis por 30 dias.
           </p>
           <Link to="/cadastro">
             <Button size="lg" variant="secondary" className="bg-white text-[#0EA572] hover:bg-gray-100">

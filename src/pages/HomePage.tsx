@@ -64,7 +64,7 @@ export function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/cadastro">
                   <Button size="lg" className="w-full sm:w-auto">
-                    Experimente 15 dias grátis
+                    Experimente 30 dias grátis
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -300,7 +300,7 @@ export function HomePage() {
             Pronto para vender mais?
           </h2>
           <p className="text-lg text-white/90 mb-8">
-            Comece agora com 15 dias grátis. Sem cartão de crédito.
+            Comece agora com 30 dias grátis. Sem cartão de crédito.
           </p>
           <Link to="/cadastro">
             <Button size="lg" variant="secondary" className="bg-white text-[#0EA572] hover:bg-gray-100">
@@ -311,7 +311,7 @@ export function HomePage() {
           <div className="flex items-center justify-center gap-6 mt-8 text-white/80 text-sm">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              <span>15 dias grátis</span>
+              <span>30 dias grátis</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
