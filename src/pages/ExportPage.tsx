@@ -4,7 +4,7 @@ import { saveAs } from 'file-saver'
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from '@/components/ui'
 import { Download, FileText, Folder, CheckCircle, AlertCircle } from 'lucide-react'
 
-// Lista completa de arquivos do projeto Venddi
+// Lista completa de arquivos do projeto Venddi (Sprint 04 - Atualizado)
 const PROJECT_FILES = [
   // Configurações raiz
   'package.json',
@@ -15,23 +15,47 @@ const PROJECT_FILES = [
   'README.md',
   '.env.example',
   '.gitignore',
+  'INSTRUCOES_EXPORTACAO.md',
+  'MANIFEST.md',
+  'GATE_DE_ENTREGA.md',
+  'RELATORIO_FINAL_EXPORTACAO.md',
   
   // Documentação
   'docs/ARCHITECTURE.md',
   'docs/BACKLOG.md',
   'docs/BLUM_REUSE_ASSESSMENT.md',
+  'docs/BRAND.md',
+  'docs/BRAND_GUIDELINES.md',
   'docs/DATABASE.md',
+  'docs/EXPORT_GUIDE.md',
   'docs/PROGRESS.md',
+  'docs/REBRANDING_REPORT.md',
   'docs/ROADMAP.md',
   'docs/SECURITY.md',
   'docs/SPRINT_01_1_REPORT.md',
   'docs/SPRINT_01_2_REPORT.md',
+  'docs/VENDDI_2_REPOSITIONING.md',
+  'docs/VENDDI_HOMOLOGATION_PLAN.md',
+  'docs/VENDDI_IMPLEMENTATION_REPORT.md',
+  'docs/VENDDI_REA_FUNCTIONAL_ANALYSIS.md',
+  'docs/VENDDI_SPRINT_03_REPORT.md',
+  'docs/VENDDI_SPRINT_04_REPORT.md',
+  'docs/VENDDI_SPRINT_04_SUMMARY.md',
   
-  // Código fonte - Componentes
+  // Assets de Branding
+  'public/favicon.svg',
+  'src/assets/branding/logo-full.svg',
+  'src/assets/branding/logo-full-white.svg',
+  'src/assets/branding/logo-icon.svg',
+  'src/assets/branding/logo-text.svg',
+  
+  // Código fonte - Entry
   'src/App.tsx',
   'src/main.tsx',
   'src/index.css',
   'src/vite-env.d.ts',
+  
+  // Código fonte - Componentes
   'src/components/forms/ProductForm.tsx',
   'src/components/layout/AdminLayout.tsx',
   'src/components/layout/Sidebar.tsx',
@@ -46,9 +70,13 @@ const PROJECT_FILES = [
   'src/components/ui/index.ts',
   
   // Código fonte - Lib
+  'src/lib/api/cashRegister.ts',
+  'src/lib/api/financial.ts',
   'src/lib/api/products.ts',
+  'src/lib/api/sales.ts',
   'src/lib/router.tsx',
   'src/lib/schemas.ts',
+  'src/lib/schemas/sales.ts',
   'src/lib/services/auth.ts',
   'src/lib/store/auth.ts',
   'src/lib/supabase.ts',
@@ -56,25 +84,37 @@ const PROJECT_FILES = [
   
   // Testes
   'src/lib/__tests__/permissions.test.ts',
+  'src/lib/__tests__/sales.test.ts',
   'src/lib/__tests__/schemas.test.ts',
   'src/lib/__tests__/utils.test.ts',
   
   // Páginas
+  'src/pages/CashRegisterPage.tsx',
   'src/pages/DashboardPage.tsx',
+  'src/pages/ExportPage.tsx',
+  'src/pages/FinancialPage.tsx',
+  'src/pages/HomePage.tsx',
   'src/pages/LoginPage.tsx',
+  'src/pages/ManagementDashboardPage.tsx',
+  'src/pages/PDVPage.tsx',
   'src/pages/PlaceholderPage.tsx',
+  'src/pages/PricingPage.tsx',
   'src/pages/ProductsPage.tsx',
-  'src/pages/RegisterPage.tsx',
+  'src/pages/SignUpPage.tsx',
   
-  // Supabase - Migrations
+  // Supabase - Migrations (001-008)
   'supabase/migrations/001_foundation.sql',
   'supabase/migrations/002_products_stock.sql',
   'supabase/migrations/003_sales_customers.sql',
   'supabase/migrations/004_cashier_financial.sql',
   'supabase/migrations/005_rls_policies.sql',
+  'supabase/migrations/006_atomic_sale_rpc.sql',
+  'supabase/migrations/007_sale_enhancements.sql',
+  'supabase/migrations/008_critical_fixes.sql',
   
   // Supabase - Testes
   'supabase/tests/rls_isolation_test.sql',
+  'supabase/tests/rls_integration_tests.sql',
 ]
 
 interface ExportProgress {
