@@ -11,6 +11,7 @@ let mockSaleNumber = 1
  */
 export async function createSale(params: {
   idempotencyKey: string
+  companyId: string
   items: SaleItem[]
   payments: Payment[]
   customerId?: string
@@ -24,6 +25,7 @@ export async function createSale(params: {
 }): Promise<Sale> {
   const {
     idempotencyKey,
+    companyId,
     items,
     payments,
     customerId,
@@ -79,7 +81,7 @@ export async function createSale(params: {
   try {
     // Use atomic RPC function that handles everything in a single transaction
     const { data: result, error } = await supabase.rpc('create_atomic_sale', {
-      p_company_id: 'cmp_001', // Would come from auth context
+      p_company_id: companyId,
       p_operator_id: operatorId,
       p_cash_register_id: cashRegisterId,
       p_customer_id: customerId,

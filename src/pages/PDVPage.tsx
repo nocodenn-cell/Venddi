@@ -4,6 +4,7 @@ import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag,
 import { createSale } from '@/lib/api/sales'
 import { getOpenCashRegister } from '@/lib/api/cashRegister'
 import { emitNfceForSale } from '@/lib/api/fiscal'
+import { getProducts } from '@/lib/api/products'
 import { useAuthStore } from '@/lib/store/auth'
 import { v4 as uuidv4 } from 'uuid'
 import { QuickProductSearch } from '@/components/QuickProductSearch'
@@ -74,6 +75,9 @@ export function PDVPage() {
     enabled: true,
   })
 
+  const [products, setProducts] = useState<any[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(true)
+
   // Check if cash register is open
   useEffect(() => {
     const checkCashRegister = async () => {
@@ -94,14 +98,30 @@ export function PDVPage() {
     checkCashRegister()
   }, [user])
 
-  // Mock products
-  const products = [
-    { id: '1', name: 'Camiseta Básica', sku: 'CAM-001', price: 49.90 },
-    { id: '2', name: 'Calça Jeans', sku: 'CAL-002', price: 129.90 },
-    { id: '3', name: 'Tênis Esportivo', sku: 'TEN-003', price: 199.90 },
-    { id: '4', name: 'Boné Trucker', sku: 'BON-004', price: 39.90 },
-    { id: '5', name: 'Meia Esportiva', sku: 'MEI-005', price: 19.90 },
-  ]
+  // Load products from API
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoadingProducts(true)
+        const result = await getProducts({})
+        setProducts(result.data)
+      } catch (err) {
+        console.error('Error loading products:', err)
+        // Fallback to mock products if API fails
+        setProducts([
+          { id: '1', name: 'Camiseta Básica', sku: 'CAM-001', price: 49.90 },
+          { id: '2', name: 'Calça Jeans', sku: 'CAL-002', price: 129.90 },
+          { id: '3', name: 'Tênis Esportivo', sku: 'TEN-003', price: 199.90 },
+          { id: '4', name: 'Boné Trucker', sku: 'BON-004', price: 39.90 },
+          { id: '5', name: 'Meia Esportiva', sku: 'MEI-005', price: 19.90 },
+        ])
+      } finally {
+        setLoadingProducts(false)
+      }
+    }
+    
+    loadProducts()
+  }, [])
 
   const addToCart = (product: typeof products[0]) => {
     const existingItem = cart.find(item => item.id === product.id)
@@ -445,6 +465,7 @@ export function PDVPage() {
                   // Step 1: Create sale
                   const sale = await createSale({
                     idempotencyKey: uuidv4(),
+                    companyId: company?.id || 'cmp_001',
                     items: cart.map(item => ({
                       productId: item.id,
                       productName: item.name,

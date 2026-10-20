@@ -7,7 +7,7 @@ import { calculateTrialEndDate, calculateTrialStartDate, determineSubscriptionSt
 // ============================================
 
 /**
- * Create a new subscription with 15-day trial
+ * Create a new subscription with 30-day trial
  */
 export async function createTrialSubscription(params: {
   companyId: string
