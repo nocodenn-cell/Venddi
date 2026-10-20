@@ -178,8 +178,13 @@ export function validateSalePayments(sale: { total: number; payments: Payment[] 
   return Math.abs(totalPayments - sale.total) < 0.01 // Allow small floating point differences
 }
 
+/**
+ * Calculate change amount
+ * Rounds to 2 decimal places to avoid floating point precision issues
+ */
 export function calculateChange(receivedAmount: number, totalAmount: number): number {
-  return Math.max(0, receivedAmount - totalAmount)
+  const change = receivedAmount - totalAmount
+  return Math.max(0, Math.round(change * 100) / 100)
 }
 
 export function calculateSaleTotals(

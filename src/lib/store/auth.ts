@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, Company, UserRole } from '@/lib/schemas'
 import { hasPermission } from '@/lib/schemas'
+import { createTrialSubscription } from '@/lib/api/subscription'
 
 interface AuthState {
   user: User | null
@@ -87,36 +88,52 @@ export const useAuthStore = create<AuthState>()(
       register: async (data: RegisterData) => {
         set({ isLoading: true })
         
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        try {
+          // Simulate API call for user and company creation
+          await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        const newUser: User = {
-          id: `usr_${Date.now()}`,
-          companyId: `cmp_${Date.now()}`,
-          email: data.email,
-          fullName: data.fullName,
-          role: 'owner',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          const newUser: User = {
+            id: `usr_${Date.now()}`,
+            companyId: `cmp_${Date.now()}`,
+            email: data.email,
+            fullName: data.fullName,
+            role: 'owner',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+
+          const newCompany: Company = {
+            id: newUser.companyId,
+            name: data.companyName,
+            cnpj: data.cnpj,
+            plan: 'starter',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+
+          // Create trial subscription automatically
+          try {
+            await createTrialSubscription({
+              companyId: newCompany.id,
+              plan: 'starter',
+            })
+          } catch (subscriptionError) {
+            console.error('Error creating trial subscription:', subscriptionError)
+            // Continue even if subscription creation fails (will be created later)
+          }
+
+          set({
+            user: newUser,
+            company: newCompany,
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        } catch (error) {
+          set({ isLoading: false })
+          throw error
         }
-
-        const newCompany: Company = {
-          id: newUser.companyId,
-          name: data.companyName,
-          cnpj: data.cnpj,
-          plan: 'starter',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-
-        set({
-          user: newUser,
-          company: newCompany,
-          isAuthenticated: true,
-          isLoading: false,
-        })
       },
 
       switchCompany: (company: Company) => {
