@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText } from 'lucide-react'
 import { createSale } from '@/lib/api/sales'
 import { getOpenCashRegister } from '@/lib/api/cashRegister'
+import { emitNfceForSale } from '@/lib/api/fiscal'
 import { useAuthStore } from '@/lib/store/auth'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -22,7 +23,7 @@ interface Payment {
 }
 
 export function PDVPage() {
-  const { user } = useAuthStore()
+  const { user, company } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
   const [cashRegisterId, setCashRegisterId] = useState<string | null>(null)
@@ -31,6 +32,8 @@ export function PDVPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
   const [lastSale, setLastSale] = useState<any>(null)
+  const [fiscalStatus, setFiscalStatus] = useState<'idle' | 'emitting' | 'success' | 'error'>('idle')
+  const [fiscalMessage, setFiscalMessage] = useState<string>('')
 
   // Check if cash register is open
   useEffect(() => {
@@ -382,6 +385,7 @@ export function PDVPage() {
                 setError(null)
 
                 try {
+                  // Step 1: Create sale
                   const sale = await createSale({
                     idempotencyKey: uuidv4(),
                     items: cart.map(item => ({
@@ -407,12 +411,54 @@ export function PDVPage() {
                   })
 
                   setLastSale(sale)
+
+                  // Step 2: Emit NFC-e (fiscal document)
+                  if (company) {
+                    setFiscalStatus('emitting')
+                    setFiscalMessage('Emitindo NFC-e...')
+
+                    try {
+                      const fiscalResult = await emitNfceForSale({
+                        companyId: company.id,
+                        saleId: sale.id,
+                        saleNumber: sale.saleNumber,
+                        items: cart.map(item => ({
+                          productId: item.id,
+                          productName: item.name,
+                          quantity: item.quantity,
+                          unitPrice: item.price,
+                        })),
+                        payments: payments.map(p => ({
+                          method: p.method,
+                          amount: p.amount,
+                        })),
+                        total: sale.total,
+                        discount: sale.discount,
+                        useMock: true, // Use mock for now (no real Focus NFe credentials)
+                      })
+
+                      if (fiscalResult.success) {
+                        setFiscalStatus('success')
+                        setFiscalMessage(`NFC-e emitida com sucesso! Chave: ${fiscalResult.fiscalDocument?.accessKey || 'N/A'}`)
+                      } else {
+                        setFiscalStatus('error')
+                        setFiscalMessage(`Erro ao emitir NFC-e: ${fiscalResult.error || 'Erro desconhecido'}`)
+                      }
+                    } catch (fiscalErr) {
+                      setFiscalStatus('error')
+                      setFiscalMessage(`Erro ao emitir NFC-e: ${fiscalErr instanceof Error ? fiscalErr.message : 'Erro desconhecido'}`)
+                    }
+                  }
+
                   setCart([])
                   setPayments([])
                   setShowPaymentModal(false)
                   
                   // Show success message
-                  alert(`Venda #${sale.saleNumber} finalizada com sucesso!\nTotal: R$ ${sale.total.toFixed(2)}`)
+                  const fiscalInfo = fiscalStatus === 'success' ? '\n\n✅ NFC-e emitida com sucesso!' : 
+                                   fiscalStatus === 'error' ? '\n\n⚠️ Venda registrada, mas NFC-e pendente.' : 
+                                   '\n\nℹ️ NFC-e não configurada.'
+                  alert(`Venda #${sale.saleNumber} finalizada com sucesso!\nTotal: R$ ${sale.total.toFixed(2)}${fiscalInfo}`)
                 } catch (err) {
                   setError(err instanceof Error ? err.message : 'Erro ao finalizar venda')
                 } finally {
