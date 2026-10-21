@@ -154,7 +154,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </div>
         )}
         <button
-          onClick={logout}
+          onClick={() => logout().catch((err) => console.error('Falha ao sair:', err))}
           className={cn(
             'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all',
             isCollapsed && 'justify-center'

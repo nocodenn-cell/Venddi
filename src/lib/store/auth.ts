@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { User, Company } from '@/lib/schemas'
 import { hasPermission } from '@/lib/schemas'
 import { signIn, signUp, signOut } from '@/lib/services/auth'
+import { supabase } from '@/lib/supabase'
 
 interface AuthState {
   user: User | null
@@ -10,7 +11,7 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   register: (data: RegisterData) => Promise<void>
   switchCompany: (company: Company) => void
   checkPermission: (permission: string) => boolean
@@ -51,8 +52,11 @@ export const useAuthStore = create<AuthState>()(
         })
       },
 
-      logout: () => {
-        void signOut()
+      logout: async () => {
+        // Só encerra a sessão local depois que o Supabase confirmar o logout
+        const { error } = await signOut()
+        if (error) throw new Error(error)
+
         set({
           user: null,
           company: null,
@@ -90,6 +94,22 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'venddi-auth',
+      // Versão 2: descarta o estado persistido pelo mock antigo (email-only)
+      version: 2,
+      migrate: (persisted, version) =>
+        version < 2
+          ? ({ user: null, company: null, isAuthenticated: false } as AuthState)
+          : (persisted as AuthState),
     }
   )
 )
+
+// Com Supabase configurado, a sessão persistida no navegador precisa existir
+// no Supabase. Sessão expirada ou revogada é descartada ao carregar o app.
+if (supabase) {
+  supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) {
+      useAuthStore.setState({ user: null, company: null, isAuthenticated: false })
+    }
+  })
+}

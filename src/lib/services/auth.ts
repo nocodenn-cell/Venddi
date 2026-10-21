@@ -112,37 +112,19 @@ export async function signUp(data: SignUpData): Promise<AuthResponse> {
     
     if (authError) throw authError
     if (!authData.user) throw new Error('Erro ao criar usuário')
-    
-    // Create company
-    const { data: companyData, error: companyError } = await supabase
-      .from('companies')
-      .insert({
-        name: data.companyName,
-        cnpj: data.cnpj,
-        plan: 'starter',
-        status: 'active',
-      })
-      .select()
-      .single()
-    
-    if (companyError) throw companyError
-    
-    // Create user record
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .insert({
-        company_id: companyData.id,
-        auth_id: authData.user.id,
-        email: data.email,
-        full_name: data.fullName,
-        role: 'owner',
-        is_active: true,
-      })
-      .select()
-      .single()
-    
-    if (userError) throw userError
-    
+
+    // Empresa, usuário owner e trial são criados atomicamente no banco (migration 012)
+    const { data: tenant, error: tenantError } = await supabase.rpc('register_tenant', {
+      p_company_name: data.companyName,
+      p_cnpj: data.cnpj,
+      p_full_name: data.fullName,
+      p_plan: 'starter',
+    })
+
+    if (tenantError) throw tenantError
+
+    const userData = tenant.user
+
     const user: User = {
       id: userData.id,
       companyId: userData.company_id,
@@ -153,8 +135,8 @@ export async function signUp(data: SignUpData): Promise<AuthResponse> {
       createdAt: userData.created_at,
       updatedAt: userData.updated_at,
     }
-    
-    return { user, company: toCompany(companyData), error: null }
+
+    return { user, company: toCompany(tenant.company), error: null }
   } catch (error) {
     return {
       user: null,
@@ -209,7 +191,13 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
     
     if (userError) throw userError
     if (!userData) throw new Error('Usuário não encontrado')
-    
+
+    // Usuário desativado ou empresa suspensa/cancelada não pode entrar
+    if (!userData.is_active || userData.companies?.status !== 'active') {
+      await supabase.auth.signOut()
+      throw new Error('Acesso bloqueado. Contate o administrador da sua empresa.')
+    }
+
     const user: User = {
       id: userData.id,
       companyId: userData.company_id,
