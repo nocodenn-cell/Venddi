@@ -91,7 +91,8 @@ SELECT COUNT(*) as test4_companies FROM companies;
 RESET ROLE;
 
 -- ============================================
--- TEST 5: User cannot elevate their own role
+-- TEST 5: Owner can promote another user of the same company to admin
+-- (regra: owner gerencia papéis dos usuários da própria empresa)
 -- ============================================
 SET LOCAL ROLE authenticated;
 SET request.jwt.claim.sub = 'b0000000-0000-4000-8000-00000000000b';
@@ -101,12 +102,12 @@ SET request.jwt.claim.sub = 'b0000000-0000-4000-8000-00000000000b';
 INSERT INTO users (id, company_id, auth_id, email, full_name, role, is_active)
 VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'c0000000-0000-4000-8000-00000000000c', 'user-c@test.com', 'User C', 'cashier', true);
 
--- Try to promote cashier to admin (should be blocked by policy)
+-- Owner promotes cashier to admin (permitido pela policy "Owners and admins can update users")
 UPDATE users SET role = 'admin' WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
--- Verify role was not changed
+-- Verify role was changed
 SELECT role FROM users WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
--- Expected: 'cashier' (not 'admin')
+-- Expected: 'admin'
 
 RESET ROLE;
 
