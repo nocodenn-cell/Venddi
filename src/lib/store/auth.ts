@@ -104,11 +104,12 @@ export const useAuthStore = create<AuthState>()(
   )
 )
 
-// Com Supabase configurado, a sessão persistida no navegador precisa existir
-// no Supabase. Sessão expirada ou revogada é descartada ao carregar o app.
+// Com Supabase configurado, a sessão local precisa acompanhar a sessão do Supabase.
+// Dispara ao carregar (INITIAL_SESSION), quando a sessão expira ou é revogada,
+// e quando o usuário sai em outra aba. Sem sessão, o estado local é descartado.
 if (supabase) {
-  supabase.auth.getSession().then(({ data }) => {
-    if (!data.session) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (!session) {
       useAuthStore.setState({ user: null, company: null, isAuthenticated: false })
     }
   })
