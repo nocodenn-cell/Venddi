@@ -69,3 +69,21 @@ psql -d teste -v ON_ERROR_STOP=1 -f supabase/tests/012_tenant_isolation_test.sql
 - O cancelamento não exige papel de gerente (mantido para não regredir; decisão do negócio).
 - Caixa e produtos ainda usam IDs fictícios no cliente (itens 7 e 8 da auditoria do PR #2).
 - As migrations 005/006/008/010 continuam quebradas para instalação limpa. Decidir se serão reparadas, o que só é seguro se nunca tiverem sido aplicadas em produção.
+
+## Compatibilidade com o PR #2 (fix/auth-operational-identity)
+
+- `store/auth.ts` não é alterado por este branch. O cadastro real foi para `src/lib/services/registration.ts`,
+  e a `SignUpPage` usa esse serviço apenas quando o Supabase está configurado. No modo demonstração continua igual.
+- O único conflito textual é em `src/lib/api/sales.ts` (as linhas `p_company_id`/`p_operator_id`).
+  **Resolução: manter a versão do PR #2.** A migration 012 aceita os dois formatos: sem ids, ou com ids
+  que precisam ser iguais aos da sessão (se forem diferentes, a chamada é recusada).
+- Validado localmente: main + PR #2 + este branch → `tsc` sem erros, `vite build` ok,
+  vitest com 69/70 testes (a única falha, `calculateChange` com decimais, já existe na main).
+
+## Cadeia de migrations 001–011 (Postgres 17 local, stand-in de auth)
+
+Com cada arquivo aplicado comando a comando: 005 tem 2 erros, 006 tem 2, 008 tem 3 e 010 tem 4.
+**`create_atomic_sale` não existe** ao fim da cadeia: 006 e 008 falham com "input parameters after one
+with a default value must also have defaults". `cancel_sale_with_reversal` e `get_user_company_id` existem.
+A 012 aplica sem erro tanto sobre esse estado (A) quanto sobre 001–004 (B), e o teste passa 83/83 nos dois.
+O estado real da produção ainda **não foi auditado** (ver PR).
