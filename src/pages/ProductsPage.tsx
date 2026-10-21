@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal, Pagination } from '@/components/ui'
-import { Package, Plus, Search, Filter, Edit, Trash2, AlertCircle } from 'lucide-react'
-import { getProducts, createProduct, updateProduct, deleteProduct, type Product, type ProductInput, type ProductFilters } from '@/lib/api/products'
+import { Package, Plus, Search, Filter, Edit, Trash2, AlertCircle, ArrowDownToLine } from 'lucide-react'
+import { getProducts, createProduct, updateProduct, deleteProduct, registerStockEntry, type Product, type ProductInput, type ProductFilters } from '@/lib/api/products'
+import { useAuthStore } from '@/lib/store/auth'
 import { ProductForm } from '@/components/forms/ProductForm'
 
 export function ProductsPage() {
@@ -18,6 +19,15 @@ export function ProductsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Entrada de estoque
+  const { checkPermission } = useAuthStore()
+  const canWriteProducts = checkPermission('products.write')
+  const [stockProduct, setStockProduct] = useState<Product | null>(null)
+  const [stockQuantity, setStockQuantity] = useState('')
+  const [stockReason, setStockReason] = useState('')
+  const [stockError, setStockError] = useState<string | null>(null)
+  const [isStockSubmitting, setIsStockSubmitting] = useState(false)
 
   // Load products
   const loadProducts = async () => {
@@ -97,6 +107,43 @@ export function ProductsPage() {
   const closeModal = () => {
     setIsModalOpen(false)
     setEditingProduct(null)
+  }
+
+  // Entrada de estoque
+  const openStockModal = (product: Product) => {
+    setStockProduct(product)
+    setStockQuantity('')
+    setStockReason('')
+    setStockError(null)
+  }
+
+  const closeStockModal = () => {
+    setStockProduct(null)
+  }
+
+  const handleStockEntry = async () => {
+    if (!stockProduct) return
+    const quantity = Number(stockQuantity)
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      setStockError('Informe uma quantidade inteira maior que zero')
+      return
+    }
+
+    try {
+      setIsStockSubmitting(true)
+      setStockError(null)
+      await registerStockEntry({
+        productId: stockProduct.id,
+        quantity,
+        reason: stockReason.trim() || undefined,
+      })
+      closeStockModal()
+      await loadProducts()
+    } catch (err) {
+      setStockError(err instanceof Error ? err.message : 'Erro ao registrar entrada de estoque')
+    } finally {
+      setIsStockSubmitting(false)
+    }
   }
 
   return (
@@ -215,6 +262,15 @@ export function ProductsPage() {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {canWriteProducts && (
+                              <button
+                                onClick={() => openStockModal(product)}
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 transition-colors"
+                                title="Entrada de estoque"
+                              >
+                                <ArrowDownToLine className="h-4 w-4 text-emerald-600" />
+                              </button>
+                            )}
                             <button
                               onClick={() => openEditModal(product)}
                               className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
@@ -280,6 +336,45 @@ export function ProductsPage() {
           onCancel={closeModal}
           isLoading={isSubmitting}
         />
+      </Modal>
+
+      {/* Entrada de estoque */}
+      <Modal
+        isOpen={stockProduct !== null}
+        onClose={closeStockModal}
+        title="Entrada de estoque"
+        description={stockProduct ? `${stockProduct.name} — saldo atual: ${stockProduct.stockQuantity}` : undefined}
+      >
+        <div className="space-y-4">
+          {stockError && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {stockError}
+            </div>
+          )}
+          <Input
+            label="Quantidade recebida"
+            type="number"
+            min={1}
+            step={1}
+            value={stockQuantity}
+            onChange={(e) => setStockQuantity(e.target.value)}
+            placeholder="Ex.: 10"
+          />
+          <Input
+            label="Motivo ou nota (opcional)"
+            value={stockReason}
+            onChange={(e) => setStockReason(e.target.value)}
+            placeholder="Ex.: Compra NF 1234"
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={closeStockModal} disabled={isStockSubmitting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleStockEntry} disabled={isStockSubmitting}>
+              {isStockSubmitting ? 'Registrando...' : 'Registrar entrada'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
