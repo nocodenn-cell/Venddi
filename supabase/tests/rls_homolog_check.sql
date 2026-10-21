@@ -7,6 +7,7 @@ INSERT INTO companies (id, name, cnpj, plan, status) VALUES
   ('11111111-1111-1111-1111-111111111111', 'Company A', '11.111.111/1111-11', 'starter', 'active'),
   ('22222222-2222-2222-2222-222222222222', 'Company B', '22.222.222/2222-22', 'starter', 'active');
 
+INSERT INTO company_subscriptions (company_id, plan, status, trial_days) VALUES ('11111111-1111-1111-1111-111111111111','starter','active',15), ('22222222-2222-2222-2222-222222222222','starter','active',15);
 INSERT INTO users (id, company_id, auth_id, email, full_name, role, is_active) VALUES
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'a0000000-0000-4000-8000-00000000000a', 'user-a@test.com', 'User A', 'owner', true),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'b0000000-0000-4000-8000-00000000000b', 'user-b@test.com', 'User B', 'owner', true);

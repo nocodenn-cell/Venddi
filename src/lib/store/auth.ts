@@ -3,7 +3,8 @@ import { persist } from 'zustand/middleware'
 import type { User, Company } from '@/lib/schemas'
 import { hasPermission } from '@/lib/schemas'
 import { signIn, signUp, signOut } from '@/lib/services/auth'
-import { supabase } from '@/lib/supabase'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { canCompanyAccess } from '@/lib/api/subscription'
 
 interface AuthState {
   user: User | null
@@ -42,6 +43,16 @@ export const useAuthStore = create<AuthState>()(
         if (error || !user) {
           set({ isLoading: false })
           throw new Error(error ?? 'Credenciais inválidas')
+        }
+
+        // Trial expirado ou assinatura cancelada: não entra (a RLS já bloqueia os dados)
+        if (isSupabaseConfigured && company) {
+          const access = await canCompanyAccess(company.id)
+          if (!access.canAccess) {
+            await signOut()
+            set({ isLoading: false })
+            throw new Error(access.reason ?? 'Acesso não permitido para esta empresa')
+          }
         }
 
         set({

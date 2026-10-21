@@ -475,3 +475,27 @@ export async function activateProduct(id: string): Promise<Product> {
 export async function deactivateProduct(id: string): Promise<Product> {
   return updateProduct(id, { isActive: false })
 }
+
+/**
+ * Registra entrada de estoque (compra, reposição). Só owner, admin e manager.
+ * Soma ao estoque e grava o movimento na mesma transação (RPC registrar_entrada_estoque).
+ */
+export async function registerStockEntry(params: {
+  productId: string
+  quantity: number
+  reason?: string
+}): Promise<{ newBalance: number }> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Entrada de estoque requer Supabase configurado')
+  }
+
+  const { data, error } = await supabase.rpc('registrar_entrada_estoque', {
+    p_product_id: params.productId,
+    p_quantity: params.quantity,
+    p_reason: params.reason ?? null,
+  })
+
+  if (error) throw new Error(error.message)
+
+  return { newBalance: data.new_balance }
+}

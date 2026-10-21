@@ -8,7 +8,7 @@ DO $$ DECLARE r jsonb; s int; t text; BEGIN
   IF r->'company'->>'name' <> 'Loja Nova' THEN RAISE EXCEPTION 'FALHOU: empresa'; END IF;
   IF r->'user'->>'role' <> 'owner' THEN RAISE EXCEPTION 'FALHOU: papel'; END IF;
   IF (r->'user'->>'email') <> 'novo@loja.com' THEN RAISE EXCEPTION 'FALHOU: email'; END IF;
-  SELECT count(*) INTO s FROM company_subscriptions WHERE company_id = (r->'company'->>'id')::uuid AND status = 'trial' AND trial_days = 30 AND trial_end_date > now() + interval '29 days';
+  SELECT count(*) INTO s FROM company_subscriptions WHERE company_id = (r->'company'->>'id')::uuid AND status = 'trial' AND trial_days = 15 AND trial_end_date > now() + interval '14 days';
   IF s <> 1 THEN RAISE EXCEPTION 'FALHOU: trial nao criado'; END IF;
 END $$;
 DO $$ BEGIN
