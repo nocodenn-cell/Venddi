@@ -41,7 +41,11 @@ export function SetPasswordPage() {
 
     try {
       setSaving(true)
-      const { error: updateError } = await supabase.auth.updateUser({ password })
+      // A marca password_set é o aceite do convite (usada pela Edge Function)
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+        data: { password_set: true },
+      })
       if (updateError) throw updateError
       // Sai da sessão do convite: o funcionário entra de novo com e-mail e senha
       await supabase.auth.signOut()

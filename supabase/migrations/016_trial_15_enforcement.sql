@@ -100,3 +100,15 @@ $$;
 DROP POLICY IF EXISTS "Users can view their company subscription" ON company_subscriptions;
 CREATE POLICY "Users can view their company subscription" ON company_subscriptions FOR SELECT
   USING (company_id = get_user_company_id_ignoring_subscription());
+
+-- O próprio perfil continua legível mesmo com trial expirado. Sem isso, o login
+-- não consegue carregar o usuário para mostrar "Trial expirado" nem a empresa
+-- para a renovação. Só expõe a linha do próprio usuário, nenhum dado operacional.
+DROP POLICY IF EXISTS "Users can view own profile" ON users;
+CREATE POLICY "Users can view own profile" ON users FOR SELECT
+  USING (auth_id = auth.uid());
+
+-- A assinatura não é alterada pelo cliente. Antes, o owner podia gravar
+-- status = 'active' direto e contornar o trial. Mudanças de plano/status
+-- passam a ser feitas só pelo backend (service role).
+DROP POLICY IF EXISTS "Owners can update subscriptions" ON company_subscriptions;

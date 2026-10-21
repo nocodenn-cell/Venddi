@@ -2,12 +2,16 @@
 //
 // Ações (campo "action" no corpo, padrão "invite"):
 //   invite  -> cria convite por e-mail e o registro em users
-//   resend  -> reenvia o convite de um funcionário que ainda não aceitou
-//   cancel  -> cancela um convite pendente (só conta que nunca foi aceita)
-//   list    -> status dos convites da empresa (pendente, pode reenviar)
+//   resend  -> reenvia o convite (ou o link de definir senha) de quem ainda não aceitou
+//   cancel  -> cancela um convite pendente (conta que nunca aceitou)
+//   list    -> status dos convites da empresa
+//
+// "Aceito" = o funcionário definiu a senha. A página /convite grava
+// user_metadata.password_set = true junto com a senha. Também conta como aceito
+// quem já fez login. Confirmar o e-mail sozinho não é aceite.
 //
 // Regras, sempre verificadas no servidor a partir do registro de quem chama:
-//   - quem chama é owner ou admin ativo, em empresa ativa
+//   - quem chama é owner ou admin ativo, em empresa ativa, com assinatura válida
 //   - só owner convida, reenvia ou cancela administradores
 //   - o company_id vem do registro do chamador, nunca do corpo da requisição
 //   - ninguém convida owner
@@ -16,9 +20,10 @@
 // ou senhas nos logs.
 //
 // Deploy: npx supabase functions deploy invite-employee
-// Segredo: APP_URL (URL pública do app; o link do convite aponta para /convite)
+// Segredos: APP_URL (URL pública do app; o link aponta para /convite).
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY e SUPABASE_ANON_KEY vêm do próprio Supabase.
 
-import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient, type SupabaseClient, type User } from 'jsr:@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -58,6 +63,11 @@ function safeAuthMessage(message: string | undefined): string {
   return 'Não foi possível enviar o convite. Tente novamente'
 }
 
+// Aceito = senha definida (marca do /convite) ou já fez login
+function hasAccepted(authUser: User): boolean {
+  return authUser.user_metadata?.password_set === true || !!authUser.last_sign_in_at
+}
+
 async function authorizeCaller(admin: SupabaseClient, req: Request): Promise<Caller> {
   const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '')
   const { data: auth, error } = await admin.auth.getUser(token)
@@ -80,6 +90,17 @@ async function authorizeCaller(admin: SupabaseClient, req: Request): Promise<Cal
     .maybeSingle()
   if (!company || company.status !== 'active') {
     throw new HttpError(403, 'Empresa inativa')
+  }
+
+  // A RLS de assinatura não vale aqui (service role). Checa explicitamente.
+  const { data: sub } = await admin
+    .from('company_subscriptions')
+    .select('status, trial_end_date')
+    .eq('company_id', me.company_id)
+    .maybeSingle()
+  const trialValid = sub?.status === 'trial' && sub.trial_end_date && new Date(sub.trial_end_date).getTime() > Date.now()
+  if (!sub || !(sub.status === 'active' || trialValid)) {
+    throw new HttpError(403, 'Assinatura inativa ou trial expirado')
   }
 
   return { id: me.id, company_id: me.company_id, role: me.role }
@@ -141,7 +162,10 @@ async function handleInvite(admin: SupabaseClient, caller: Caller, body: any, ap
     // Corrida ou duplicidade: desfaz a conta criada no Auth para não ficar órfã
     await admin.auth.admin.deleteUser(invited.user.id)
     const duplicate = insertError.code === '23505'
-    throw new HttpError(duplicate ? 409 : 400, duplicate ? 'Este e-mail já está cadastrado' : 'Não foi possível cadastrar o funcionário')
+    throw new HttpError(
+      duplicate ? 409 : 400,
+      duplicate ? 'Este e-mail já está cadastrado' : 'Não foi possível cadastrar o funcionário'
+    )
   }
 
   return { status: 201, body: { success: true, userId: created.id } }
@@ -159,16 +183,22 @@ async function loadTarget(admin: SupabaseClient, caller: Caller, userId: string)
   return target
 }
 
+// Consulta o usuário no Auth. Erro de consulta nunca vira "não encontrado".
+async function fetchAuthUser(admin: SupabaseClient, authId: string): Promise<User> {
+  const { data, error } = await admin.auth.admin.getUserById(authId)
+  if (error || !data.user) {
+    throw new HttpError(503, 'Não foi possível verificar o convite agora. Tente novamente')
+  }
+  return data.user
+}
+
 async function handleResend(admin: SupabaseClient, caller: Caller, body: any, appUrl: string) {
   const target = await loadTarget(admin, caller, String(body.userId ?? ''))
+  const authUser = await fetchAuthUser(admin, target.auth_id)
 
-  const { data: authData, error: authError } = await admin.auth.admin.getUserById(target.auth_id)
-  if (authError || !authData.user) throw new HttpError(404, 'Convite não encontrado')
-  if (authData.user.email_confirmed_at) {
-    // Já aceitou o convite: o caminho é "Esqueci minha senha", não um novo convite
+  if (hasAccepted(authUser)) {
     throw new HttpError(409, 'Este funcionário já ativou o acesso. Ele pode usar "Esqueci minha senha"')
   }
-
   if (target.invite_send_count >= MAX_INVITES_PER_USER) {
     throw new HttpError(429, 'Limite de convites atingido para este funcionário. Cancele e convide de novo')
   }
@@ -180,11 +210,23 @@ async function handleResend(admin: SupabaseClient, caller: Caller, body: any, ap
     }
   }
 
-  // Para conta ainda não aceita, o Auth reenvia o convite (novo link válido)
-  const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(target.email, {
-    redirectTo: `${appUrl}/convite`,
-  })
-  if (inviteError) throw new HttpError(409, safeAuthMessage(inviteError.message))
+  if (!authUser.email_confirmed_at) {
+    // Convite ainda não aberto: o Auth reenvia o convite
+    const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(target.email, {
+      redirectTo: `${appUrl}/convite`,
+    })
+    if (inviteError) throw new HttpError(409, safeAuthMessage(inviteError.message))
+  } else {
+    // E-mail já confirmado, senha ainda não definida: link de definir senha (recuperação oficial).
+    // Cai no mesmo /convite, que define a senha e grava a marca de aceite.
+    const anon = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    const { error: resetError } = await anon.auth.resetPasswordForEmail(target.email, {
+      redirectTo: `${appUrl}/convite`,
+    })
+    if (resetError) throw new HttpError(409, safeAuthMessage(resetError.message))
+  }
 
   await admin
     .from('users')
@@ -199,16 +241,22 @@ async function handleResend(admin: SupabaseClient, caller: Caller, body: any, ap
 
 async function handleCancel(admin: SupabaseClient, caller: Caller, body: any) {
   const target = await loadTarget(admin, caller, String(body.userId ?? ''))
+  const authUser = await fetchAuthUser(admin, target.auth_id)
 
-  const { data: authData } = await admin.auth.admin.getUserById(target.auth_id)
-  if (authData?.user?.email_confirmed_at) {
+  // Só cancela convite nunca aceito. Conta ativa nunca é removida por aqui.
+  if (hasAccepted(authUser)) {
     throw new HttpError(409, 'Não é possível cancelar: o funcionário já ativou o acesso')
   }
 
-  // Remove só o registro e a conta ainda não aceita. Nunca conta ativa.
   const { error: deleteRowError } = await admin.from('users').delete().eq('id', target.id)
   if (deleteRowError) throw new HttpError(400, 'Não foi possível cancelar o convite')
-  await admin.auth.admin.deleteUser(target.auth_id)
+
+  const { error: deleteAuthError } = await admin.auth.admin.deleteUser(target.auth_id)
+  if (deleteAuthError) {
+    // Registro já removido; o Auth pode ser limpo novamente pelo painel
+    console.error('invite-employee: convite removido, conta Auth não removida')
+    throw new HttpError(500, 'Convite removido, mas a conta de acesso precisa de limpeza manual')
+  }
 
   return { status: 200, body: { success: true } }
 }
@@ -224,18 +272,22 @@ async function handleList(admin: SupabaseClient, caller: Caller) {
   const items = []
   for (const row of rows ?? []) {
     let pending = false
+    let canResend = false
     if (row.auth_id) {
       const { data: authData } = await admin.auth.admin.getUserById(row.auth_id)
-      pending = !!authData?.user && !authData.user.email_confirmed_at
+      if (authData?.user) {
+        pending = !hasAccepted(authData.user)
+        const elapsed = row.invite_sent_at
+          ? (Date.now() - new Date(row.invite_sent_at).getTime()) / 1000
+          : Infinity
+        canResend = pending && row.invite_send_count < MAX_INVITES_PER_USER && elapsed >= RESEND_COOLDOWN_SECONDS
+      }
     }
-    const elapsed = row.invite_sent_at
-      ? (Date.now() - new Date(row.invite_sent_at).getTime()) / 1000
-      : Infinity
     const canManage = row.role !== 'owner' && (row.role !== 'admin' || caller.role === 'owner')
     items.push({
       userId: row.id,
       pending,
-      canResend: pending && canManage && row.invite_send_count < MAX_INVITES_PER_USER && elapsed >= RESEND_COOLDOWN_SECONDS,
+      canResend: pending && canManage && canResend,
       canCancel: pending && canManage,
       inviteSentAt: row.invite_sent_at,
       inviteSendCount: row.invite_send_count,
