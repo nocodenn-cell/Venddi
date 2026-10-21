@@ -181,9 +181,9 @@ const faqs = [
   { q: 'Serve para o meu tipo de loja?', a: 'Serve para pequenos comércios que vendem no balcão: mercadinho, roupas, conveniência, papelaria, celular e acessórios, cosméticos e outros. Funções específicas de cada ramo: [CONFIRMAR: balança? grade tamanho/cor?].' },
   { q: 'Funciona no celular?', a: 'O Venddi abre no navegador. [CONFIRMAR: uso completo no celular e tablet?]' },
   { q: 'Precisa de internet?', a: '[CONFIRMAR: funciona sem internet?]' },
-  { q: 'Emite nota fiscal?', a: '[CONFIRMAR: NFC-e?]' },
-  { q: 'Quanto custa?', a: 'Você testa 30 dias grátis. Depois, [PREÇO] por mês. Veja os planos na seção de preços.' },
-  { q: 'Como eu cancelo?', a: 'Sem multa e sem cartão no teste. [CONFIRMAR: passo a passo do cancelamento].' },
+  { q: 'Emite nota fiscal?', a: 'Não nesta fase. A emissão de NFC-e não faz parte do Venddi por enquanto.' },
+  { q: 'Quanto custa?', a: 'Agende uma demonstração sem compromisso. Depois, [PREÇO] por mês. Veja os planos na seção de preços.' },
+  { q: 'Como eu cancelo?', a: 'Sem multa e sem fidelidade. [CONFIRMAR: passo a passo do cancelamento].' },
 ]
 
 // Prova social: fica oculta até existir depoimento real. Ex.: [{ name: '[DEPOIMENTO REAL]', text: '...' }]
@@ -233,7 +233,7 @@ export function HomePage() {
                 <Button variant="ghost" size="sm" className="font-bold">Entrar</Button>
               </Link>
               <Link to="/cadastro" className="hidden sm:inline-flex">
-                <Button size="sm" className="bg-[#FBBF24] text-gray-950 font-extrabold hover:bg-[#F59E0B]">30 dias grátis</Button>
+                <Button size="sm" className="bg-[#FBBF24] text-gray-950 font-extrabold hover:bg-[#F59E0B]">Agendar demonstração</Button>
               </Link>
               <button
                 type="button"
@@ -260,7 +260,7 @@ export function HomePage() {
               ))}
               <Link to="/precos" className="px-2 py-3 rounded-lg font-semibold text-gray-800 hover:bg-gray-100">Todos os planos</Link>
               <Link to="/cadastro" className="mt-2 inline-flex items-center justify-center rounded-xl bg-[#FBBF24] h-12 font-extrabold text-gray-950">
-                Testar 30 dias grátis
+                Agendar demonstração
               </Link>
             </nav>
           )}
@@ -286,7 +286,7 @@ export function HomePage() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Link to="/cadastro" className={ctaPrimary}>
-                    Testar 30 dias grátis
+                    Agendar demonstração
                     <ArrowRight className="h-5 w-5" aria-hidden="true" />
                   </Link>
                   <a href={wa} {...waExternal} className={ctaWhatsApp}>
@@ -449,7 +449,7 @@ export function HomePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-3">Preço justo para loja pequena</h2>
-              <p className="text-lg text-gray-700">Teste 30 dias grátis. Sem cartão de crédito.</p>
+              <p className="text-lg text-gray-700">Agende uma demonstração. Sem cartão de crédito.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
               {plans.map((p, i) => (
@@ -464,7 +464,7 @@ export function HomePage() {
                     to="/cadastro"
                     className={`inline-flex w-full items-center justify-center rounded-xl h-12 font-extrabold ${p.highlight ? 'bg-[#FBBF24] text-gray-950 hover:bg-[#F59E0B]' : 'bg-gray-950 text-white hover:bg-gray-800'}`}
                   >
-                    Testar 30 dias grátis
+                    Agendar demonstração
                   </Link>
                 </div>
               ))}
@@ -505,10 +505,10 @@ export function HomePage() {
         <section className="py-14 sm:py-20 bg-gradient-to-br from-[#0EA572] to-[#065F46]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight mb-4">Pronto para vender mais?</h2>
-            <p className="text-lg sm:text-xl text-emerald-50 mb-8">Comece agora com 30 dias grátis. Sem cartão de crédito.</p>
+            <p className="text-lg sm:text-xl text-emerald-50 mb-8">Agende uma demonstração. Sem cartão de crédito.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link to="/cadastro" className={ctaPrimary}>
-                Criar minha conta grátis
+                Agendar demonstração
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
               <a href={wa} {...waExternal} className={ctaWhatsApp}>
@@ -517,7 +517,7 @@ export function HomePage() {
               </a>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8 text-emerald-50 text-sm">
-              {['30 dias grátis', 'Sem cartão', 'Cancele quando quiser'].map((t) => (
+              {['Demonstração com a nossa equipe', 'Sem cartão', 'Cancele quando quiser'].map((t) => (
                 <span key={t} className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-[#FBBF24]" aria-hidden="true" />
                   {t}
@@ -570,7 +570,7 @@ export function HomePage() {
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400 flex flex-col items-center gap-2">
             <span className="inline-flex items-center gap-2"><Mail className="h-4 w-4" aria-hidden="true" />[CONFIRMAR: e-mail de contato do Venddi]</span>
-            <p>© 2026 Venddi. Um produto Mature Code. Todos os direitos reservados.</p>
+            <p>© 2026 Venddi. Um produto Nature Code. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
