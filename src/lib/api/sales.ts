@@ -43,6 +43,14 @@ export async function createSale(params: {
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
   const total = subtotal - discount + additionalExpenses
 
+  // Desconto: máximo 5% do subtotal, só com pagamento em dinheiro (regra também no banco)
+  if (discount < 0 || discount > Math.round(subtotal * 5) / 100 + 0.001) {
+    throw new Error('Desconto máximo de 5% sem autorização do gerente')
+  }
+  if (discount > 0 && payments.some((p) => p.method !== 'cash')) {
+    throw new Error('Venda com desconto só pode ser paga em dinheiro')
+  }
+
   // Validate payments
   const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
   if (Math.abs(totalPayments - total) > 0.01) {

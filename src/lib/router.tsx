@@ -14,6 +14,7 @@ import { ManagementDashboardPage } from '@/pages/ManagementDashboardPage'
 import { HelpCenterPage } from '@/pages/HelpCenterPage'
 import { HardwareSettingsPage } from '@/pages/HardwareSettingsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { FuncionariosPage } from '@/pages/FuncionariosPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -83,7 +84,7 @@ export function AppRouter() {
           <Route path="vendas" element={<PermissionRoute permission="sales.read"><PlaceholderPage title="Vendas" description="Histórico de vendas" /></PermissionRoute>} />
           <Route path="caixas" element={<PermissionRoute permission="cashier.read"><CashRegisterPage /></PermissionRoute>} />
           <Route path="financeiro" element={<PermissionRoute permission="financial.read"><FinancialPage /></PermissionRoute>} />
-          <Route path="funcionarios" element={<PermissionRoute permission="users.read"><PlaceholderPage title="Funcionários" description="Gestão de equipe e permissões" /></PermissionRoute>} />
+          <Route path="funcionarios" element={<PermissionRoute permission="users.read"><FuncionariosPage /></PermissionRoute>} />
           <Route path="relatorios" element={<PermissionRoute permission="reports.read"><ManagementDashboardPage /></PermissionRoute>} />
           <Route path="ajuda" element={<HelpCenterPage />} />
           <Route path="hardware" element={<PermissionRoute permission="settings.read"><HardwareSettingsPage /></PermissionRoute>} />
