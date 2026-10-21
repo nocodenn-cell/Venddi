@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { getCurrentCompanyId } from '@/lib/store/auth'
 import type { FinancialAccount, FinancialCategory } from '@/lib/schemas/sales'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -7,7 +8,7 @@ let mockFinancialAccounts: FinancialAccount[] = []
 let mockFinancialCategories: FinancialCategory[] = [
   {
     id: 'cat_001',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     name: 'Vendas',
     type: 'income',
     color: '#0EA572',
@@ -16,7 +17,7 @@ let mockFinancialCategories: FinancialCategory[] = [
   },
   {
     id: 'cat_002',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     name: 'Aluguel',
     type: 'expense',
     color: '#EF4444',
@@ -25,7 +26,7 @@ let mockFinancialCategories: FinancialCategory[] = [
   },
   {
     id: 'cat_003',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     name: 'Fornecedores',
     type: 'expense',
     color: '#F59E0B',
@@ -68,7 +69,7 @@ export async function createFinancialAccount(params: {
 
     const newAccount: FinancialAccount = {
       id: uuidv4(),
-      companyId: 'cmp_001',
+      companyId: getCurrentCompanyId(),
       type,
       description,
       category,
@@ -94,7 +95,7 @@ export async function createFinancialAccount(params: {
     const { data, error } = await supabase
       .from('financial_accounts')
       .insert({
-        company_id: 'cmp_001',
+        company_id: getCurrentCompanyId(),
         type,
         description,
         amount,

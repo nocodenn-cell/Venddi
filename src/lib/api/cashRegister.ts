@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { getCurrentCompanyId } from '@/lib/store/auth'
 import type { CashRegister, CashMovement } from '@/lib/schemas/sales'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -31,7 +32,7 @@ export async function openCashRegister(params: {
 
     const newCashRegister: CashRegister = {
       id: uuidv4(),
-      companyId: 'cmp_001',
+      companyId: getCurrentCompanyId(),
       operatorId,
       operatorName,
       status: 'open',
@@ -52,7 +53,7 @@ export async function openCashRegister(params: {
     const { data, error } = await supabase
       .from('cash_registers')
       .insert({
-        company_id: 'cmp_001',
+        company_id: getCurrentCompanyId(),
         operator_id: operatorId,
         status: 'open',
         initial_amount: initialAmount,
@@ -170,7 +171,7 @@ export async function registerWithdrawal(params: {
     const movement: CashMovement = {
       id: uuidv4(),
       cashRegisterId,
-      companyId: 'cmp_001',
+      companyId: getCurrentCompanyId(),
       operatorId,
       type: 'withdrawal',
       amount,
@@ -192,7 +193,7 @@ export async function registerWithdrawal(params: {
       .from('cash_movements')
       .insert({
         cash_register_id: cashRegisterId,
-        company_id: 'cmp_001',
+        company_id: getCurrentCompanyId(),
         operator_id: operatorId,
         type: 'withdrawal',
         amount,
@@ -257,7 +258,7 @@ export async function registerDeposit(params: {
     const movement: CashMovement = {
       id: uuidv4(),
       cashRegisterId,
-      companyId: 'cmp_001',
+      companyId: getCurrentCompanyId(),
       operatorId,
       type: 'deposit',
       amount,
@@ -279,7 +280,7 @@ export async function registerDeposit(params: {
       .from('cash_movements')
       .insert({
         cash_register_id: cashRegisterId,
-        company_id: 'cmp_001',
+        company_id: getCurrentCompanyId(),
         operator_id: operatorId,
         type: 'deposit',
         amount,

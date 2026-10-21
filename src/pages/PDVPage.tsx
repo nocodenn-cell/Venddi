@@ -445,6 +445,7 @@ export function PDVPage() {
                   // Step 1: Create sale
                   const sale = await createSale({
                     idempotencyKey: uuidv4(),
+                    companyId: company?.id ?? '',
                     items: cart.map(item => ({
                       productId: item.id,
                       productName: item.name,

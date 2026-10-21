@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { getCurrentCompanyId } from '@/lib/store/auth'
 import type { Sale, SaleItem, Payment } from '@/lib/schemas/sales'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -11,6 +12,7 @@ let mockSaleNumber = 1
  */
 export async function createSale(params: {
   idempotencyKey: string
+  companyId: string
   items: SaleItem[]
   payments: Payment[]
   customerId?: string
@@ -24,6 +26,7 @@ export async function createSale(params: {
 }): Promise<Sale> {
   const {
     idempotencyKey,
+    companyId,
     items,
     payments,
     customerId,
@@ -52,7 +55,7 @@ export async function createSale(params: {
 
     const newSale: Sale = {
       id: uuidv4(),
-      companyId: 'cmp_001',
+      companyId,
       saleNumber: mockSaleNumber++,
       customerId,
       customerName,
@@ -79,7 +82,7 @@ export async function createSale(params: {
   try {
     // Use atomic RPC function that handles everything in a single transaction
     const { data: result, error } = await supabase.rpc('create_atomic_sale', {
-      p_company_id: 'cmp_001', // Would come from auth context
+      p_company_id: getCurrentCompanyId(), // Would come from auth context
       p_operator_id: operatorId,
       p_cash_register_id: cashRegisterId,
       p_customer_id: customerId,
@@ -270,7 +273,7 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
     // Use atomic RPC function that handles full reversal
     const { data: result, error } = await supabase.rpc('cancel_sale_with_reversal', {
       p_sale_id: saleId,
-      p_company_id: 'cmp_001', // Would come from auth context
+      p_company_id: getCurrentCompanyId(), // Would come from auth context
       p_operator_id: 'usr_001', // Would come from auth context
       p_reason: reason,
     })

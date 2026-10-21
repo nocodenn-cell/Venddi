@@ -135,35 +135,5 @@ USING (company_id = get_user_company_id());
 -- SECURITY: Prevent manipulation of company_id
 -- ============================================
 
--- Add check constraints to prevent company_id manipulation
-ALTER TABLE fiscal_configurations
-ADD CONSTRAINT chk_fiscal_configurations_company_match
-CHECK (
-  company_id IN (
-    SELECT company_id FROM users WHERE auth_id = auth.uid()
-  )
-);
-
-ALTER TABLE product_fiscal_data
-ADD CONSTRAINT chk_product_fiscal_data_company_match
-CHECK (
-  company_id IN (
-    SELECT company_id FROM users WHERE auth_id = auth.uid()
-  )
-);
-
-ALTER TABLE fiscal_documents
-ADD CONSTRAINT chk_fiscal_documents_company_match
-CHECK (
-  company_id IN (
-    SELECT company_id FROM users WHERE auth_id = auth.uid()
-  )
-);
-
-ALTER TABLE fiscal_events
-ADD CONSTRAINT chk_fiscal_events_company_match
-CHECK (
-  company_id IN (
-    SELECT company_id FROM users WHERE auth_id = auth.uid()
-  )
-);
+-- Não usamos CHECK com subconsulta: o PostgreSQL não aceita. A proteção de
+-- company_id já é feita pelas políticas WITH CHECK acima.

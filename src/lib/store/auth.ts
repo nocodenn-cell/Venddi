@@ -113,3 +113,8 @@ if (supabase) {
     }
   })
 }
+
+// Empresa da sessão atual, usada pelas camadas de API no lugar de IDs fixos
+export function getCurrentCompanyId(): string {
+  return useAuthStore.getState().company?.id ?? ''
+}
