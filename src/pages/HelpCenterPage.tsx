@@ -41,8 +41,8 @@ const faqItems: FAQItem[] = [
     category: 'Relatórios',
   },
   {
-    question: 'O que acontece quando meu trial de 30 dias acabar?',
-    answer: 'Você receberá notificações antes do vencimento. Após o trial, você pode escolher um plano pago para continuar usando a Venddi. Seus dados serão preservados por 30 dias.',
+    question: 'O que acontece quando meu período de avaliação acabar?',
+    answer: 'Quando nossa equipe libera um período de avaliação, você recebe avisos antes do vencimento. Depois dele, você pode escolher um plano pago para continuar usando a Venddi. Seus dados serão preservados por 30 dias.',
     category: 'Assinatura',
   },
   {

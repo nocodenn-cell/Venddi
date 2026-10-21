@@ -37,7 +37,7 @@ export function HomePage() {
                 <Button variant="ghost" size="sm">Entrar</Button>
               </Link>
               <Link to="/cadastro">
-                <Button size="sm">15 dias grátis</Button>
+                <Button size="sm">Agendar demonstração</Button>
               </Link>
             </div>
           </div>
@@ -64,7 +64,7 @@ export function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/cadastro">
                   <Button size="lg" className="w-full sm:w-auto">
-                    Experimente 30 dias grátis
+                    Agendar demonstração
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
@@ -300,18 +300,18 @@ export function HomePage() {
             Pronto para vender mais?
           </h2>
           <p className="text-lg text-white/90 mb-8">
-            Comece agora com 30 dias grátis. Sem cartão de crédito.
+            Agende uma demonstração. Sem cartão de crédito.
           </p>
           <Link to="/cadastro">
             <Button size="lg" variant="secondary" className="bg-white text-[#0EA572] hover:bg-gray-100">
-              Criar minha conta grátis
+              Agendar demonstração
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
           <div className="flex items-center justify-center gap-6 mt-8 text-white/80 text-sm">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              <span>30 dias grátis</span>
+              <span>Demonstração com a nossa equipe</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
@@ -369,7 +369,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>© 2026 Venddi. Um produto Mature Code. Todos os direitos reservados.</p>
+            <p>© 2026 Venddi. Um produto Nature Code. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

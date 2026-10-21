@@ -77,7 +77,7 @@ export function PricingPage() {
                 <Button variant="ghost" size="sm">Entrar</Button>
               </Link>
               <Link to="/cadastro">
-                <Button size="sm">15 dias grátis</Button>
+                <Button size="sm">Agendar demonstração</Button>
               </Link>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function PricingPage() {
             <span className="text-[#0EA572]">vendas sem complicação</span>
           </h1>
           <p className="text-lg text-gray-600 mb-8">
-            Comece com 30 dias grátis. Sem cartão de crédito. Cancele quando quiser.
+            Agende uma demonstração. Sem cartão de crédito. Cancele quando quiser.
           </p>
         </div>
       </section>
@@ -170,12 +170,12 @@ export function PricingPage() {
           <div className="space-y-6">
             <div className="bg-white rounded-xl p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Como funciona o teste grátis de 30 dias?
+                Como eu começo a usar?
               </h3>
               <p className="text-gray-600">
-                Você cria sua conta e tem acesso completo ao Venddi por 30 dias, sem precisar 
-                cadastrar cartão de crédito. Ao final do período, você pode escolher um plano 
-                pago ou simplesmente não continuar, sem nenhum custo.
+                Você agenda uma demonstração e cadastra sua loja, sem cartão de crédito. Nossa 
+                equipe apresenta o Venddi e libera o acesso da sua loja. Depois, você escolhe 
+                se quer continuar com um plano.
               </p>
             </div>
             <div className="bg-white rounded-xl p-6">
@@ -219,11 +219,11 @@ export function PricingPage() {
             Pronto para começar?
           </h2>
           <p className="text-lg text-white/90 mb-8">
-            Crie sua conta agora e teste grátis por 30 dias.
+            Agende uma demonstração e veja o Venddi funcionando na sua loja.
           </p>
           <Link to="/cadastro">
             <Button size="lg" variant="secondary" className="bg-white text-[#0EA572] hover:bg-gray-100">
-              Criar minha conta grátis
+              Agendar demonstração
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
@@ -244,7 +244,7 @@ export function PricingPage() {
               <span className="text-xl font-bold">Venddi</span>
             </div>
             <p className="text-sm text-gray-400 mb-4">
-              © 2026 Venddi. Um produto Mature Code. Todos os direitos reservados.
+              © 2026 Venddi. Um produto Nature Code. Todos os direitos reservados.
             </p>
             <div className="flex items-center justify-center gap-6 text-sm text-gray-400">
               <Link to="/" className="hover:text-white">Início</Link>
