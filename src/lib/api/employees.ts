@@ -88,3 +88,27 @@ export async function getCommissionReport(start: Date, end: Date): Promise<Commi
     commissionValue: Number(row.commission_value),
   }))
 }
+
+/**
+ * Convida um funcionário por e-mail (Edge Function invite-employee).
+ * Só owner e admin. Cria o registro e envia o link para definir a senha.
+ */
+export async function inviteEmployee(input: {
+  email: string
+  fullName: string
+  role: 'admin' | 'manager' | 'cashier' | 'salesperson'
+  commissionPercent: number
+}): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Convite requer Supabase configurado')
+  }
+
+  const { data, error } = await supabase.functions.invoke('invite-employee', { body: input })
+
+  if (error) {
+    // Erros HTTP da função vêm com o corpo JSON em error.context
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? error.message)
+  }
+  if (data?.error) throw new Error(data.error)
+}

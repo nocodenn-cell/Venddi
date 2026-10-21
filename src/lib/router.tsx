@@ -15,6 +15,7 @@ import { HelpCenterPage } from '@/pages/HelpCenterPage'
 import { HardwareSettingsPage } from '@/pages/HardwareSettingsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
 import { FuncionariosPage } from '@/pages/FuncionariosPage'
+import { SetPasswordPage } from '@/pages/SetPasswordPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -59,6 +60,7 @@ export function AppRouter() {
         {/* Auth Routes */}
         <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
         <Route path="/cadastro" element={<PublicRoute><SignUpPage /></PublicRoute>} />
+        <Route path="/convite" element={<SetPasswordPage />} />
         
         {/* App Routes - PDV e Gestão */}
         <Route

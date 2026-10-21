@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge } from '@/components/ui'
-import { Users, RefreshCw } from 'lucide-react'
+import { Users, RefreshCw, UserPlus } from 'lucide-react'
 import {
   listEmployees,
   setCommissionPercent,
@@ -10,6 +10,7 @@ import {
 } from '@/lib/api/employees'
 import { useAuthStore } from '@/lib/store/auth'
 import { isSupabaseConfigured } from '@/lib/supabase'
+import { InviteEmployeeModal } from '@/components/employees/InviteEmployeeModal'
 
 const roleLabels: Record<Employee['role'], string> = {
   owner: 'Dono',
@@ -24,7 +25,7 @@ function toDateInput(date: Date): string {
 }
 
 export function FuncionariosPage() {
-  const { checkPermission } = useAuthStore()
+  const { checkPermission, user } = useAuthStore()
   const canEditCommission = checkPermission('users.write')
 
   const now = new Date()
@@ -37,6 +38,8 @@ export function FuncionariosPage() {
   const [error, setError] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const isOwner = user?.role === 'owner'
 
   const load = async () => {
     try {
@@ -143,6 +146,12 @@ export function FuncionariosPage() {
               <RefreshCw className="h-4 w-4 mr-2" />
               Atualizar
             </Button>
+            {canEditCommission && (
+              <Button onClick={() => setIsInviteOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Novo funcionário
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -233,6 +242,15 @@ export function FuncionariosPage() {
           )}
         </CardContent>
       </Card>
+      <InviteEmployeeModal
+        isOpen={isInviteOpen}
+        onClose={() => setIsInviteOpen(false)}
+        isOwner={isOwner}
+        onInvited={() => {
+          setIsInviteOpen(false)
+          load()
+        }}
+      />
     </div>
   )
 }
