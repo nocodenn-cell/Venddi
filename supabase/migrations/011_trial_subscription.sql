@@ -7,7 +7,7 @@
 -- COMPANY SUBSCRIPTIONS TABLE
 -- ============================================
 CREATE TABLE company_subscriptions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   -- Plan
@@ -45,7 +45,7 @@ CREATE INDEX idx_company_subscriptions_trial_end ON company_subscriptions(trial_
 -- TRIAL NOTIFICATIONS TABLE
 -- ============================================
 CREATE TABLE trial_notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   -- Notification

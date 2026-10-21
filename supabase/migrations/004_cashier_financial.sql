@@ -7,7 +7,7 @@
 -- CASH REGISTERS TABLE
 -- ============================================
 CREATE TABLE cash_registers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id),
   
@@ -39,7 +39,7 @@ CREATE INDEX idx_cash_registers_opened ON cash_registers(opened_at);
 -- CASH MOVEMENTS TABLE
 -- ============================================
 CREATE TABLE cash_movements (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cash_register_id UUID NOT NULL REFERENCES cash_registers(id) ON DELETE CASCADE,
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id),
@@ -69,7 +69,7 @@ CREATE INDEX idx_cash_movements_created ON cash_movements(created_at);
 -- FINANCIAL ACCOUNTS TABLE
 -- ============================================
 CREATE TABLE financial_accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   -- Account
@@ -114,7 +114,7 @@ CREATE INDEX idx_financial_accounts_person ON financial_accounts(person_type, pe
 -- FINANCIAL CATEGORIES TABLE
 -- ============================================
 CREATE TABLE financial_categories (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   name VARCHAR(100) NOT NULL,
