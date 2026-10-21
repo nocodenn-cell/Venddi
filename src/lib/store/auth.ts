@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { User, Company, UserRole } from '@/lib/schemas'
 import { hasPermission } from '@/lib/schemas'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 
 interface AuthState {
   user: User | null
@@ -11,19 +10,10 @@ interface AuthState {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
-  register: (data: RegisterData) => Promise<RegisterResult>
+  register: (data: RegisterData) => Promise<void>
   switchCompany: (company: Company) => void
   checkPermission: (permission: string) => boolean
 }
-
-/**
- * Resultado do cadastro.
- * - 'demo': modo demonstração (sem Supabase), entra direto como antes.
- * - 'pending_approval': conta e empresa criadas no servidor; a equipe libera a avaliação.
- * - 'confirm_email': o Supabase exige confirmação de e-mail; a empresa é criada pelo
- *   gatilho do banco e a liberação segue o mesmo fluxo.
- */
-export type RegisterResult = { status: 'demo' | 'pending_approval' | 'confirm_email' }
 
 interface RegisterData {
   fullName: string
@@ -96,44 +86,7 @@ export const useAuthStore = create<AuthState>()(
 
       register: async (data: RegisterData) => {
         set({ isLoading: true })
-
-        if (isSupabaseConfigured && supabase) {
-          // Cadastro real: a empresa, o vínculo (owner) e a assinatura "pending" são
-          // criados no servidor (gatilho em auth.users + RPC idempotente bootstrap_my_company).
-          // O navegador nunca escolhe company_id nem papel.
-          try {
-            const { data: signUp, error } = await supabase.auth.signUp({
-              email: data.email,
-              password: data.password,
-              options: {
-                data: {
-                  full_name: data.fullName,
-                  company_name: data.companyName,
-                  cnpj: data.cnpj,
-                },
-              },
-            })
-            if (error) throw error
-
-            if (!signUp.session) {
-              return { status: 'confirm_email' }
-            }
-
-            const { error: bootstrapError } = await supabase.rpc('bootstrap_my_company', {
-              p_full_name: data.fullName,
-              p_company_name: data.companyName,
-              p_cnpj: data.cnpj,
-            })
-            if (bootstrapError) throw bootstrapError
-
-            return { status: 'pending_approval' }
-          } catch (err) {
-            throw new Error(err instanceof Error && err.message ? err.message : 'Erro ao criar conta')
-          } finally {
-            set({ isLoading: false })
-          }
-        }
-
+        
         // Simulate API call
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
@@ -164,7 +117,6 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           isLoading: false,
         })
-        return { status: 'demo' }
       },
 
       switchCompany: (company: Company) => {
@@ -182,4 +134,3 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 )
-

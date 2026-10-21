@@ -8,15 +8,39 @@ vi.mock('@/lib/supabase', () => ({
   isSupabaseConfigured: true,
   supabase: {
     rpc: (...args: unknown[]) => rpc(...args),
-    from: () => ({ select: () => ({ eq: () => ({ single: () => single() }) }) }),
+    from: () => {
+      const q: Record<string, unknown> = {}
+      q.select = () => q
+      q.eq = () => q
+      q.single = () => single()
+      return q
+    },
     auth: { signUp: (...args: unknown[]) => signUp(...args) },
   },
 }))
+
+// Contexto autenticado simulado (compatível com o PR #2, que lê a sessão via getAuthenticatedContext).
+vi.mock('@/lib/services/auth', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getAuthenticatedContext: async () => ({
+    user: { id: 'usr-real', role: 'owner', isActive: true },
+    company: { id: 'cmp-real', isActive: true },
+  }),
+}))
+
+// O servidor (migration 012) deriva empresa e operador do token. O cliente pode omitir
+// esses ids ou enviar os da sessão real; nunca ids fictícios.
+function expectNoForgedIds(args: Record<string, unknown>) {
+  if ('p_company_id' in args) expect(args.p_company_id).toBe('cmp-real')
+  if ('p_operator_id' in args) expect(args.p_operator_id).toBe('usr-real')
+  expect(JSON.stringify(args)).not.toMatch(/cmp_001|usr_001|qualquer/)
+}
 
 import { createSale, cancelSale } from '@/lib/api/sales'
 import { mapEntitlements } from '@/lib/api/entitlements'
 import { FEATURE_FLAGS } from '@/lib/featureFlags'
 import { useAuthStore } from '@/lib/store/auth'
+import { registerCompanyAccount } from '@/lib/services/registration'
 
 beforeEach(() => {
   rpc.mockReset()
@@ -25,7 +49,7 @@ beforeEach(() => {
 })
 
 describe('venda: empresa e operador vêm do servidor', () => {
-  it('create_atomic_sale não recebe p_company_id nem p_operator_id', async () => {
+  it('create_atomic_sale não recebe empresa/operador escolhidos pelo navegador', async () => {
     rpc.mockResolvedValue({ data: { success: true, sale_id: 's1' }, error: null })
     single.mockResolvedValue({
       data: { id: 's1', company_id: 'c1', sale_number: 1, sale_items: [], payments: [], subtotal: 10, total: 10 },
@@ -40,9 +64,7 @@ describe('venda: empresa e operador vêm do servidor', () => {
     })
     const [name, args] = rpc.mock.calls[0]
     expect(name).toBe('create_atomic_sale')
-    expect(args).not.toHaveProperty('p_company_id')
-    expect(args).not.toHaveProperty('p_operator_id')
-    expect(JSON.stringify(args)).not.toContain('cmp_001')
+    expectNoForgedIds(args)
   })
 
   it('cancel_sale_with_reversal não recebe ids fictícios', async () => {
@@ -51,9 +73,7 @@ describe('venda: empresa e operador vêm do servidor', () => {
     try { await cancelSale('s1', 'motivo') } catch { /* leitura posterior não importa aqui */ }
     const call = rpc.mock.calls.find((c) => c[0] === 'cancel_sale_with_reversal')
     expect(call).toBeTruthy()
-    expect(call![1]).not.toHaveProperty('p_company_id')
-    expect(call![1]).not.toHaveProperty('p_operator_id')
-    expect(JSON.stringify(call![1])).not.toMatch(/cmp_001|usr_001/)
+    expectNoForgedIds(call![1])
   })
 })
 
@@ -74,7 +94,7 @@ describe('cadastro real cria empresa no servidor', () => {
   it('envia dados da loja como metadados e chama bootstrap_my_company', async () => {
     signUp.mockResolvedValue({ data: { session: { access_token: 'x' }, user: { id: 'u1' } }, error: null })
     rpc.mockResolvedValue({ data: { success: true, company_id: 'c1' }, error: null })
-    const res = await useAuthStore.getState().register({
+    const res = await registerCompanyAccount({
       fullName: 'Dono Teste', email: 'dono@teste.local', password: 'segredo1',
       companyName: 'Loja Teste', cnpj: '11.111.111/0001-11',
     })
@@ -90,7 +110,7 @@ describe('cadastro real cria empresa no servidor', () => {
 
   it('com confirmação de e-mail não chama a RPC (o gatilho do banco cria a empresa)', async () => {
     signUp.mockResolvedValue({ data: { session: null, user: { id: 'u2' } }, error: null })
-    const res = await useAuthStore.getState().register({
+    const res = await registerCompanyAccount({
       fullName: 'Dono Dois', email: 'd2@teste.local', password: 'segredo1',
       companyName: 'Loja Dois', cnpj: '22.222.222/0001-22',
     })

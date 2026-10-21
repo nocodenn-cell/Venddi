@@ -5,6 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui'
 import { useAuthStore } from '@/lib/store/auth'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { registerCompanyAccount } from '@/lib/services/registration'
 
 const registerSchema = z.object({
   fullName: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -34,16 +36,20 @@ export function SignUpPage() {
   })
 
   const [notice, setNotice] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const onSubmit = async (data: RegisterInput) => {
     try {
       setError(null)
       setNotice(null)
-      const result = await registerUser(data)
-      if (result.status === 'demo') {
+      if (!isSupabaseConfigured) {
+        // Modo demonstração (sem Supabase): comportamento original.
+        await registerUser(data)
         navigate('/app/pdv')
         return
       }
+      setSubmitting(true)
+      const result = await registerCompanyAccount(data)
       setNotice(
         result.status === 'confirm_email'
           ? 'Conta criada. Confirme seu e-mail. Depois, nossa equipe libera o acesso da sua loja.'
@@ -51,6 +57,8 @@ export function SignUpPage() {
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -66,8 +74,8 @@ export function SignUpPage() {
               </svg>
             </div>
           </div>
-          <CardTitle className="text-2xl">Comece seu teste grátis</CardTitle>
-          <CardDescription>30 dias grátis. Sem cartão de crédito.</CardDescription>
+          <CardTitle className="text-2xl">Agendar demonstração</CardTitle>
+          <CardDescription>Cadastre sua loja. Nossa equipe entra em contato para agendar a demonstração.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -85,7 +93,7 @@ export function SignUpPage() {
 
             <div className="bg-[#D1FAE5] border border-[#0EA572]/30 rounded-lg p-3 mb-4">
               <p className="text-sm text-[#087A54] font-medium">
-                ✨ Você terá acesso completo por 30 dias, sem precisar cadastrar cartão.
+                Sem cartão de crédito. O acesso é liberado pela nossa equipe depois da demonstração.
               </p>
             </div>
 
@@ -140,8 +148,8 @@ export function SignUpPage() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" isLoading={isLoading}>
-              Criar minha conta grátis
+            <Button type="submit" className="w-full" isLoading={isLoading || submitting}>
+              Agendar demonstração
             </Button>
 
             <div className="text-center text-sm text-gray-600">
