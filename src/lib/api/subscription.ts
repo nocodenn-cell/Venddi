@@ -121,9 +121,9 @@ export async function canCompanyAccess(companyId: string): Promise<{
 
   const currentStatus = determineSubscriptionStatus(subscription)
 
-  // Update status if changed
+  // Só leitura: o cliente não grava status. A transição trial → expired é feita
+  // pelo backend, e a RLS já bloqueia os dados fora do prazo.
   if (currentStatus !== subscription.status) {
-    await updateSubscriptionStatus(subscription.id, currentStatus)
     subscription.status = currentStatus
   }
 

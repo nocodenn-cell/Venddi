@@ -1,3 +1,4 @@
+import { toLocalDateInput } from '@/lib/date'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
 import { Receipt, RefreshCw } from 'lucide-react'
@@ -6,7 +7,7 @@ import { useAuthStore } from '@/lib/store/auth'
 import type { Sale } from '@/lib/schemas/sales'
 
 function toDateInput(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  return toLocalDateInput(date)
 }
 
 export function VendasPage() {
@@ -30,12 +31,18 @@ export function VendasPage() {
     try {
       setLoading(true)
       setError(null)
-      const { sales: rows } = await getSales({
-        startDate: `${startDate}T00:00:00`,
-        endDate: `${endDate}T23:59:59`,
-        limit: 200,
-      })
-      setSales(rows)
+      // Datas locais convertidas para o instante correto; todas as páginas são carregadas
+      const start = new Date(`${startDate}T00:00:00`).toISOString()
+      const end = new Date(`${endDate}T23:59:59`).toISOString()
+      const all: Sale[] = []
+      let offset = 0
+      for (;;) {
+        const { sales: page, total } = await getSales({ startDate: start, endDate: end, limit: 200, offset })
+        all.push(...page)
+        offset += page.length
+        if (page.length === 0 || offset >= total) break
+      }
+      setSales(all)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar vendas')
     } finally {

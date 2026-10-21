@@ -24,6 +24,7 @@ export function SignUpPage() {
   const navigate = useNavigate()
   const { register: registerUser, isLoading } = useAuthStore()
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
 
   const {
     register,
@@ -36,8 +37,13 @@ export function SignUpPage() {
   const onSubmit = async (data: RegisterInput) => {
     try {
       setError(null)
-      await registerUser(data)
-      navigate('/app/pdv')
+      setInfo(null)
+      const pending = await registerUser(data)
+      if (pending) {
+        setInfo('Enviamos um e-mail de confirmação. Confirme sua conta e depois entre na Venddi.')
+        return
+      }
+      navigate('/app/inicio')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta')
     }
@@ -60,6 +66,11 @@ export function SignUpPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {info && (
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">
+                {info}
+              </div>
+            )}
             {error && (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
                 {error}

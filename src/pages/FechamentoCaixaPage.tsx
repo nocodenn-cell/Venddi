@@ -1,3 +1,4 @@
+import { toLocalDateInput } from '@/lib/date'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge } from '@/components/ui'
 import { ClipboardList, RefreshCw, AlertTriangle } from 'lucide-react'
@@ -12,7 +13,7 @@ const methodLabels: Record<string, string> = {
 }
 
 function toDateInput(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  return toLocalDateInput(date)
 }
 
 function money(value: number): string {

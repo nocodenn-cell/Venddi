@@ -248,6 +248,8 @@ export async function getSales(params: {
       status: row.status,
       notes: row.notes,
       createdAt: row.created_at,
+      cancelledAt: row.cancelled_at ?? undefined,
+      cancellationReason: row.cancellation_reason ?? undefined,
       completedAt: row.sale_date,
     }))
 
