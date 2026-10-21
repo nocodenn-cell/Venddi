@@ -25,6 +25,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Bloqueia a rota se o papel do usuário não tiver a permissão (ex.: cashier em /financeiro).
+// Sem permissão, redireciona para o PDV, que todos os papéis acessam.
+function PermissionRoute({ permission, children }: { permission: string; children: React.ReactNode }) {
+  const { checkPermission } = useAuthStore()
+
+  if (!checkPermission(permission)) {
+    return <Navigate to="/app/pdv" replace />
+  }
+
+  return <>{children}</>
+}
+
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
   
@@ -62,17 +74,17 @@ export function AppRouter() {
           <Route path="pdv" element={<PDVPage />} />
           
           {/* Gestão e Administração */}
-          <Route path="gestao" element={<ManagementDashboardPage />} />
-          <Route path="produtos" element={<ProductsPage />} />
-          <Route path="estoque" element={<PlaceholderPage title="Estoque" description="Controle de estoque e movimentações" />} />
-          <Route path="vendas" element={<PlaceholderPage title="Vendas" description="Histórico de vendas" />} />
-          <Route path="caixas" element={<CashRegisterPage />} />
-          <Route path="financeiro" element={<FinancialPage />} />
-          <Route path="funcionarios" element={<PlaceholderPage title="Funcionários" description="Gestão de equipe e permissões" />} />
-          <Route path="relatorios" element={<ManagementDashboardPage />} />
+          <Route path="gestao" element={<PermissionRoute permission="reports.read"><ManagementDashboardPage /></PermissionRoute>} />
+          <Route path="produtos" element={<PermissionRoute permission="products.read"><ProductsPage /></PermissionRoute>} />
+          <Route path="estoque" element={<PermissionRoute permission="stock.read"><PlaceholderPage title="Estoque" description="Controle de estoque e movimentações" /></PermissionRoute>} />
+          <Route path="vendas" element={<PermissionRoute permission="sales.read"><PlaceholderPage title="Vendas" description="Histórico de vendas" /></PermissionRoute>} />
+          <Route path="caixas" element={<PermissionRoute permission="cashier.read"><CashRegisterPage /></PermissionRoute>} />
+          <Route path="financeiro" element={<PermissionRoute permission="financial.read"><FinancialPage /></PermissionRoute>} />
+          <Route path="funcionarios" element={<PermissionRoute permission="users.read"><PlaceholderPage title="Funcionários" description="Gestão de equipe e permissões" /></PermissionRoute>} />
+          <Route path="relatorios" element={<PermissionRoute permission="reports.read"><ManagementDashboardPage /></PermissionRoute>} />
           <Route path="ajuda" element={<HelpCenterPage />} />
-          <Route path="hardware" element={<HardwareSettingsPage />} />
-          <Route path="configuracoes" element={<PlaceholderPage title="Configurações" description="Configurações da loja" />} />
+          <Route path="hardware" element={<PermissionRoute permission="settings.read"><HardwareSettingsPage /></PermissionRoute>} />
+          <Route path="configuracoes" element={<PermissionRoute permission="settings.read"><PlaceholderPage title="Configurações" description="Configurações da loja" /></PermissionRoute>} />
         </Route>
 
         {/* 404 */}
