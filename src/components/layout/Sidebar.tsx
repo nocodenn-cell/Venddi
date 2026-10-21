@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store/auth'
 import {
+  Home,
   LayoutDashboard,
   Package,
   Users,
@@ -25,6 +26,12 @@ interface SidebarProps {
 }
 
 const menuItems = [
+  {
+    section: 'Início',
+    items: [
+      { icon: Home, label: 'Início', path: '/app/inicio', permission: undefined },
+    ]
+  },
   { 
     section: 'PDV',
     items: [
@@ -47,7 +54,6 @@ const menuItems = [
       { icon: Users, label: 'Funcionários', path: '/app/funcionarios', permission: 'users.read' },
       { icon: DollarSign, label: 'Financeiro', path: '/app/financeiro', permission: 'financial.read' },
       { icon: BarChart3, label: 'Relatórios', path: '/app/relatorios', permission: 'reports.read' },
-      { icon: TrendingUp, label: 'BI', path: '/app/bi', permission: 'reports.read' },
       { icon: HelpCircle, label: 'Central de Ajuda', path: '/app/ajuda', permission: 'settings.read' },
       { icon: Settings, label: 'Hardware', path: '/app/hardware', permission: 'settings.read' },
       { icon: Settings, label: 'Configurações', path: '/app/configuracoes', permission: 'settings.read' },
@@ -107,7 +113,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             )}
             <ul className="space-y-1">
               {section.items.map((item) => {
-                const hasAccess = checkPermission(item.permission)
+                const hasAccess = !item.permission || checkPermission(item.permission)
                 if (!hasAccess) return null
 
                 const isActive = location.pathname === item.path

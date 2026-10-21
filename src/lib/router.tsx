@@ -31,7 +31,7 @@ function PermissionRoute({ permission, children }: { permission: string; childre
   const { checkPermission } = useAuthStore()
 
   if (!checkPermission(permission)) {
-    return <Navigate to="/app/pdv" replace />
+    return <Navigate to="/app/inicio" replace />
   }
 
   return <>{children}</>
@@ -41,7 +41,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
   
   if (isAuthenticated) {
-    return <Navigate to="/app/pdv" replace />
+    return <Navigate to="/app/inicio" replace />
   }
   
   return <>{children}</>
@@ -68,9 +68,12 @@ export function AppRouter() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/app/pdv" replace />} />
+          <Route index element={<Navigate to="/app/inicio" replace />} />
           
-          {/* PDV - Ponto de Venda */}
+          {/* Início - tela padrão após o login (o PDV não abre sozinho) */}
+          <Route path="inicio" element={<DashboardPage />} />
+
+          {/* PDV - Ponto de Venda (fechado até o operador abrir) */}
           <Route path="pdv" element={<PDVPage />} />
           
           {/* Gestão e Administração */}

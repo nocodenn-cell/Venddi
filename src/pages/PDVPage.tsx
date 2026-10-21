@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText, Keyboard } from 'lucide-react'
 import { createSale } from '@/lib/api/sales'
@@ -25,7 +26,7 @@ interface Payment {
   changeAmount?: number
 }
 
-export function PDVPage() {
+function PDVSalesScreen() {
   const { user, company } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
@@ -517,6 +518,71 @@ export function PDVPage() {
         isOpen={showShortcutsHelp}
         onClose={() => setShowShortcutsHelp(false)}
       />
+    </div>
+  )
+}
+
+// PDV fechado por padrão: a tela de venda só aparece depois que o operador abre o PDV.
+// Ao sair da tela (ou clicar em Fechar), ele volta a ficar fechado.
+export function PDVPage() {
+  const { user } = useAuthStore()
+  const [pdvOpen, setPdvOpen] = useState(false)
+  const [caixaAberto, setCaixaAberto] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const check = async () => {
+      if (!user) return
+      try {
+        const register = await getOpenCashRegister(user.id)
+        if (active) setCaixaAberto(!!register)
+      } catch {
+        if (active) setCaixaAberto(false)
+      }
+    }
+    check()
+    return () => {
+      active = false
+    }
+  }, [user])
+
+  if (caixaAberto === null) {
+    return <div className="p-6 text-sm text-gray-500">Verificando caixa...</div>
+  }
+
+  if (!pdvOpen) {
+    return (
+      <Card className="max-w-xl mx-auto mt-8">
+        <CardHeader>
+          <CardTitle>PDV fechado</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            O ponto de venda só abre quando você precisa vender. Use o menu para outras funções.
+          </p>
+          {caixaAberto ? (
+            <Button onClick={() => setPdvOpen(true)}>Abrir PDV</Button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-amber-700">Abra o caixa antes de vender.</p>
+              <Link to="/app/caixas" className="text-sm font-medium text-[#0EA572] hover:underline">
+                Ir para Caixas
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <Button variant="outline" onClick={() => setPdvOpen(false)}>
+          Fechar PDV
+        </Button>
+      </div>
+      <PDVSalesScreen />
     </div>
   )
 }
