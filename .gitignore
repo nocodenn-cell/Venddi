@@ -50,3 +50,6 @@ Thumbs.db
 temp/
 .next/
 *.log
+
+# Supabase CLI local state
+supabase/.temp/
