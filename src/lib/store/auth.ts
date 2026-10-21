@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { User, Company, UserRole } from '@/lib/schemas'
+import type { User, Company } from '@/lib/schemas'
 import { hasPermission } from '@/lib/schemas'
+import { signIn, signUp, signOut } from '@/lib/services/auth'
 
 interface AuthState {
   user: User | null
@@ -23,31 +24,6 @@ interface RegisterData {
   cnpj: string
 }
 
-// Mock data for development
-const mockUser: User = {
-  id: 'usr_001',
-  companyId: 'cmp_001',
-  email: 'admin@venddi.com',
-  fullName: 'Administrador Venddi',
-  role: 'owner' as UserRole,
-  isActive: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-}
-
-const mockCompany: Company = {
-  id: 'cmp_001',
-  name: 'Loja Demo Venddi',
-  tradeName: 'Loja Demo',
-  cnpj: '12.345.678/0001-90',
-  phone: '(11) 99999-9999',
-  email: 'contato@lojademo.com.br',
-  plan: 'starter',
-  isActive: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-}
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -56,27 +32,27 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
 
-      login: async (email: string, _password: string) => {
+      login: async (email: string, password: string) => {
         set({ isLoading: true })
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 800))
 
-        // Mock authentication
-        if (email === 'admin@venddi.com') {
-          set({
-            user: mockUser,
-            company: mockCompany,
-            isAuthenticated: true,
-            isLoading: false,
-          })
-        } else {
+        // Autenticação real (Supabase) ou mock somente em dev, via services/auth
+        const { user, company, error } = await signIn(email, password)
+
+        if (error || !user) {
           set({ isLoading: false })
-          throw new Error('Credenciais inválidas')
+          throw new Error(error ?? 'Credenciais inválidas')
         }
+
+        set({
+          user,
+          company: company ?? null,
+          isAuthenticated: true,
+          isLoading: false,
+        })
       },
 
       logout: () => {
+        void signOut()
         set({
           user: null,
           company: null,
@@ -86,34 +62,17 @@ export const useAuthStore = create<AuthState>()(
 
       register: async (data: RegisterData) => {
         set({ isLoading: true })
-        
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        const newUser: User = {
-          id: `usr_${Date.now()}`,
-          companyId: `cmp_${Date.now()}`,
-          email: data.email,
-          fullName: data.fullName,
-          role: 'owner',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
+        const { user, company, error } = await signUp(data)
 
-        const newCompany: Company = {
-          id: newUser.companyId,
-          name: data.companyName,
-          cnpj: data.cnpj,
-          plan: 'starter',
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+        if (error || !user) {
+          set({ isLoading: false })
+          throw new Error(error ?? 'Erro ao criar conta')
         }
 
         set({
-          user: newUser,
-          company: newCompany,
+          user,
+          company: company ?? null,
           isAuthenticated: true,
           isLoading: false,
         })

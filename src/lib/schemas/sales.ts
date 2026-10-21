@@ -178,8 +178,13 @@ export function validateSalePayments(sale: { total: number; payments: Payment[] 
   return Math.abs(totalPayments - sale.total) < 0.01 // Allow small floating point differences
 }
 
+// Arredonda para centavos, evitando erros de ponto flutuante (ex.: 100.5 - 99.99)
+export function roundToCents(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
 export function calculateChange(receivedAmount: number, totalAmount: number): number {
-  return Math.max(0, receivedAmount - totalAmount)
+  return Math.max(0, roundToCents(receivedAmount - totalAmount))
 }
 
 export function calculateSaleTotals(
@@ -187,7 +192,7 @@ export function calculateSaleTotals(
   discount: number = 0,
   additionalExpenses: number = 0
 ): { subtotal: number; total: number } {
-  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
-  const total = subtotal - discount + additionalExpenses
+  const subtotal = roundToCents(items.reduce((sum, item) => sum + item.subtotal, 0))
+  const total = roundToCents(subtotal - discount + additionalExpenses)
   return { subtotal, total }
 }

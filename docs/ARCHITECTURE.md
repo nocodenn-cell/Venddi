@@ -14,7 +14,7 @@ Venddi is a SaaS business management system for small Brazilian retail stores, b
 - **Forms:** React Hook Form + Zod validation
 - **Backend:** Supabase (PostgreSQL + Auth + RLS)
 - **Routing:** React Router v6
-- **Testing:** Vitest (unit) + Playwright (E2E)
+- **Testing:** Vitest (unit). E2E (Playwright) ainda não configurado.
 
 ## Architecture Principles
 
@@ -39,15 +39,8 @@ src/
 │   ├── store/        # Zustand stores (auth, etc.)
 │   └── router.tsx    # React Router configuration
 ├── pages/            # Route pages
-├── modules/          # Business modules (future)
-│   ├── products/
-│   ├── customers/
-│   ├── inventory/
-│   ├── pos/
-│   ├── cashier/
-│   ├── financial/
-│   └── admin/
-└── types/            # TypeScript type definitions
+├── pages/            # (já existe) — módulos de negócio ainda não extraídos
+└── lib/api/          # Camada de acesso ao Supabase por domínio
 
 supabase/
 └── migrations/       # Versioned SQL migrations

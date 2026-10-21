@@ -40,7 +40,7 @@ src/
 │   ├── store/        # Zustand stores
 │   └── router.tsx    # Rotas
 ├── pages/            # Páginas
-└── modules/          # Módulos de negócio (futuro)
+└── lib/api/          # Acesso ao Supabase por domínio (módulos de negócio: futuro)
 
 supabase/
 └── migrations/       # Migrations SQL versionadas
