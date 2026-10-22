@@ -93,7 +93,6 @@ const PROJECT_FILES = [
   'src/pages/DashboardPage.tsx',
   'src/pages/ExportPage.tsx',
   'src/pages/FinancialPage.tsx',
-  'src/pages/HomePage.tsx',
   'src/pages/LoginPage.tsx',
   'src/pages/ManagementDashboardPage.tsx',
   'src/pages/PDVPage.tsx',
