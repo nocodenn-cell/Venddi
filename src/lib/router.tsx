@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/lib/store/auth'
 import { AdminLayout } from '@/components/layout/AdminLayout'
-import { HomePage } from '@/pages/HomePage'
 import { PricingPage } from '@/pages/PricingPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { SignUpPage } from '@/pages/SignUpPage'
@@ -39,8 +38,8 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes - Site Comercial */}
-        <Route path="/" element={<HomePage />} />
+        {/* Landing pública agora é o app Next.js em landing/; "/" leva ao app (login se deslogado) */}
+        <Route path="/" element={<Navigate to="/app" replace />} />
         <Route path="/precos" element={<PricingPage />} />
         
         {/* Auth Routes */}

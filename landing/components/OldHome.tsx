@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { Button } from '@/components/ui'
+import { Button } from '@/components/Button'
 import { 
   ShoppingCart, 
   Package, 
@@ -11,7 +10,7 @@ import {
   Clock
 } from 'lucide-react'
 
-export function HomePage() {
+export default function OldHome({ middle }: { middle: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -30,15 +29,15 @@ export function HomePage() {
             <nav className="hidden md:flex items-center gap-8">
               <a href="#beneficios" className="text-sm text-gray-600 hover:text-gray-900">Benefícios</a>
               <a href="#como-funciona" className="text-sm text-gray-600 hover:text-gray-900">Como funciona</a>
-              <Link to="/precos" className="text-sm text-gray-600 hover:text-gray-900">Preços</Link>
+              <a href="/precos" className="text-sm text-gray-600 hover:text-gray-900">Preços</a>
             </nav>
             <div className="flex items-center gap-3">
-              <Link to="/login">
+              <a href="/login">
                 <Button variant="ghost" size="sm">Entrar</Button>
-              </Link>
-              <Link to="/cadastro">
-                <Button size="sm">15 dias grátis</Button>
-              </Link>
+              </a>
+              <a href="#teste">
+                <Button size="sm">Teste grátis por 7 dias</Button>
+              </a>
             </div>
           </div>
         </div>
@@ -62,12 +61,12 @@ export function HomePage() {
                 Tudo em um sistema fácil de usar, feito para quem está no balcão.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/cadastro">
+                <a href="#teste">
                   <Button size="lg" className="w-full sm:w-auto">
-                    Experimente 30 dias grátis
+                    Teste grátis por 7 dias
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
-                </Link>
+                </a>
                 <a href="#como-funciona">
                   <Button variant="outline" size="lg" className="w-full sm:w-auto">
                     Ver como funciona
@@ -293,6 +292,8 @@ export function HomePage() {
         </div>
       </section>
 
+      {middle}
+
       {/* CTA Final */}
       <section className="py-20 bg-gradient-to-br from-[#0EA572] to-[#087A54]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -300,18 +301,18 @@ export function HomePage() {
             Pronto para vender mais?
           </h2>
           <p className="text-lg text-white/90 mb-8">
-            Comece agora com 30 dias grátis. Sem cartão de crédito.
+            Teste grátis por 7 dias. Sem cartão de crédito.
           </p>
-          <Link to="/cadastro">
+          <a href="#teste">
             <Button size="lg" variant="secondary" className="bg-white text-[#0EA572] hover:bg-gray-100">
               Criar minha conta grátis
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </Link>
+          </a>
           <div className="flex items-center justify-center gap-6 mt-8 text-white/80 text-sm">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              <span>30 dias grátis</span>
+              <span>Teste grátis por 7 dias</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
@@ -347,7 +348,7 @@ export function HomePage() {
               <h4 className="font-semibold mb-4">Produto</h4>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" className="hover:text-white">Benefícios</a></li>
-                <li><Link to="/precos" className="hover:text-white">Preços</Link></li>
+                <li><a href="/precos" className="hover:text-white">Preços</a></li>
                 <li><a href="#" className="hover:text-white">Como funciona</a></li>
               </ul>
             </div>
