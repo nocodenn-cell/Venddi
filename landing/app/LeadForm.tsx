@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { trackLead } from '@/lib/track'
 import { insertLead, leadSchema, readUtm, SEGMENTOS } from '@/lib/lead'
 
 type Errors = Partial<Record<'nome' | 'whatsapp' | 'loja' | 'cidade' | 'segmento', string>>
@@ -24,6 +25,7 @@ export default function LeadForm() {
     setSending(true)
     try {
       const protocol = await insertLead(parsed.data, readUtm(window.location.search))
+      trackLead()
       const q = new URLSearchParams({ p: protocol, n: parsed.data.nome, l: parsed.data.loja })
       window.location.assign(`/obrigado/?${q}`)
     } catch (err) {
@@ -53,6 +55,7 @@ export default function LeadForm() {
       </label>
       <button type="submit" disabled={sending}>{sending ? 'Enviando…' : 'Quero testar grátis'}</button>
       {msg && <p role="alert" className="err">{msg}</p>}
+      <p className="muted"><small>Usamos seus dados só para contato sobre o teste. Podemos usar cookies de medição (Google/Meta) para melhorar nossos anúncios.</small></p>
     </form>
   )
 }
