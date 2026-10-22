@@ -1,7 +1,23 @@
 {
   "name": "venddi-landing",
   "private": true,
-  "scripts": { "dev": "next dev", "build": "next build", "typecheck": "tsc --noEmit" },
-  "dependencies": { "next": "15.5.15", "react": "19.2.5", "react-dom": "19.2.5", "zod": "3.25.76" },
-  "devDependencies": { "typescript": "5.9.3", "@types/react": "19.2.2", "@types/node": "22.18.0" }
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.7",
+    "lucide-react": "^0.511.0",
+    "next": "15.5.15",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "tailwindcss": "^4.1.7",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
 }
