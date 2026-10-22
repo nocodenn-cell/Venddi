@@ -1,0 +1,7 @@
+{
+  "name": "venddi-landing",
+  "private": true,
+  "scripts": { "dev": "next dev", "build": "next build", "typecheck": "tsc --noEmit" },
+  "dependencies": { "next": "15.5.15", "react": "19.2.5", "react-dom": "19.2.5", "zod": "3.25.76" },
+  "devDependencies": { "typescript": "5.9.3", "@types/react": "19.2.2", "@types/node": "22.18.0" }
+}
