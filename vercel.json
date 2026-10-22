@@ -1,11 +1,11 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "https://landing-jinlong.vercel.app/" },
-    { "source": "/obrigado", "destination": "https://landing-jinlong.vercel.app/obrigado/" },
-    { "source": "/obrigado/:path*", "destination": "https://landing-jinlong.vercel.app/obrigado/:path*" },
-    { "source": "/_next/:path*", "destination": "https://landing-jinlong.vercel.app/_next/:path*" },
-    { "source": "/sitemap.xml", "destination": "https://landing-jinlong.vercel.app/sitemap.xml" },
-    { "source": "/robots.txt", "destination": "https://landing-jinlong.vercel.app/robots.txt" },
-    { "source": "/((?!assets/|favicon\\.svg$).*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "/", "dest": "https://landing-jinlong.vercel.app/" },
+    { "src": "/obrigado/?", "dest": "https://landing-jinlong.vercel.app/obrigado/" },
+    { "src": "/_next/(.*)", "dest": "https://landing-jinlong.vercel.app/_next/$1" },
+    { "src": "/sitemap\\.xml", "dest": "https://landing-jinlong.vercel.app/sitemap.xml" },
+    { "src": "/robots\\.txt", "dest": "https://landing-jinlong.vercel.app/robots.txt" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
