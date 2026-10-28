@@ -11,14 +11,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 // Check if Supabase is configured
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
-// Safety check: In production, Supabase MUST be configured
-if (isProduction && !isSupabaseConfigured) {
+// Safety check: In production, Supabase MUST be configured.
+// Sem as variáveis, o app NÃO inicia (main.tsx mostra uma tela de indisponibilidade em vez
+// de tela branca). Antes havia um throw aqui, no topo do módulo, que derrubava o bundle inteiro.
+export const isSupabaseConfigMissingInProduction = isProduction && !isSupabaseConfigured
+
+if (isSupabaseConfigMissingInProduction) {
   console.error(
     '🚨 CRITICAL: Supabase is not configured in production environment. ' +
     'Application cannot start securely without database connection. ' +
     'Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.'
   )
-  throw new Error('Supabase configuration required in production')
 }
 
 // Warning in development if Supabase is not configured
