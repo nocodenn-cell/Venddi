@@ -112,3 +112,46 @@ export async function inviteEmployee(input: {
   }
   if (data?.error) throw new Error(data.error)
 }
+
+export interface InviteStatus {
+  userId: string
+  pending: boolean
+  canResend: boolean
+  canCancel: boolean
+  inviteSentAt: string | null
+  inviteSendCount: number
+}
+
+/**
+ * Chama a Edge Function de convites e devolve o corpo, ou lança a mensagem de erro dela.
+ */
+async function invokeInvites<T>(body: Record<string, unknown>): Promise<T> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Convites requerem Supabase configurado')
+  }
+
+  const { data, error } = await supabase.functions.invoke('invite-employee', { body })
+
+  if (error) {
+    const payload = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(payload?.error ?? 'Não foi possível concluir a ação. Tente novamente')
+  }
+  if (data?.error) throw new Error(data.error)
+  return data as T
+}
+
+/** Status dos convites da empresa (pendente, pode reenviar, pode cancelar). */
+export async function listInviteStatus(): Promise<InviteStatus[]> {
+  const result = await invokeInvites<{ items: InviteStatus[] }>({ action: 'list' })
+  return result.items
+}
+
+/** Reenvia o convite de um funcionário que ainda não aceitou. */
+export async function resendInvite(userId: string): Promise<void> {
+  await invokeInvites({ action: 'resend', userId })
+}
+
+/** Cancela um convite pendente (conta que ainda não foi aceita). */
+export async function cancelInvite(userId: string): Promise<void> {
+  await invokeInvites({ action: 'cancel', userId })
+}

@@ -13,7 +13,7 @@ interface AuthState {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  register: (data: RegisterData) => Promise<void>
+  register: (data: RegisterData) => Promise<boolean>
   switchCompany: (company: Company) => void
   checkPermission: (permission: string) => boolean
 }
@@ -78,7 +78,12 @@ export const useAuthStore = create<AuthState>()(
       register: async (data: RegisterData) => {
         set({ isLoading: true })
 
-        const { user, company, error } = await signUp(data)
+        const { user, company, error, pendingConfirmation } = await signUp(data)
+
+        if (pendingConfirmation) {
+          set({ isLoading: false })
+          return true
+        }
 
         if (error || !user) {
           set({ isLoading: false })
@@ -91,6 +96,8 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           isLoading: false,
         })
+
+        return false
       },
 
       switchCompany: (company: Company) => {

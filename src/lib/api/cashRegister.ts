@@ -451,3 +451,77 @@ export async function getOpenCashRegister(operatorId: string): Promise<CashRegis
     throw new Error('Erro ao carregar caixa aberto')
   }
 }
+
+export interface CashClosingReport {
+  cashRegisterId: string
+  status: 'open' | 'closed'
+  openedAt: string
+  closedAt: string | null
+  operatorName: string
+  initialAmount: number
+  salesCount: number
+  salesTotal: number
+  cancelledCount: number
+  cancelledTotal: number
+  paymentsByMethod: Record<string, number>
+  withdrawals: number
+  deposits: number
+  refunds: number
+  expectedCash: number
+  informedCash: number | null
+  difference: number | null
+  cashConsistent: boolean
+}
+
+function mapClosing(row: any): CashClosingReport {
+  return {
+    cashRegisterId: row.cash_register_id,
+    status: row.status,
+    openedAt: row.opened_at,
+    closedAt: row.closed_at ?? null,
+    operatorName: row.operator_name ?? '',
+    initialAmount: Number(row.initial_amount),
+    salesCount: Number(row.sales_count),
+    salesTotal: Number(row.sales_total),
+    cancelledCount: Number(row.cancelled_count),
+    cancelledTotal: Number(row.cancelled_total),
+    paymentsByMethod: Object.fromEntries(
+      Object.entries(row.payments_by_method ?? {}).map(([k, v]) => [k, Number(v)])
+    ),
+    withdrawals: Number(row.withdrawals),
+    deposits: Number(row.deposits),
+    refunds: Number(row.refunds),
+    expectedCash: Number(row.expected_cash),
+    informedCash: row.informed_cash === null || row.informed_cash === undefined ? null : Number(row.informed_cash),
+    difference: row.difference === null || row.difference === undefined ? null : Number(row.difference),
+    cashConsistent: row.cash_consistent === true,
+  }
+}
+
+/**
+ * Fechamento de um caixa (RPC relatorio_fechamento_caixa). O próprio operador ou owner/admin/manager.
+ */
+export async function getCashClosingReport(cashRegisterId: string): Promise<CashClosingReport | null> {
+  if (!isSupabaseConfigured || !supabase) return null
+
+  const { data, error } = await supabase.rpc('relatorio_fechamento_caixa', {
+    p_cash_register_id: cashRegisterId,
+  })
+  if (error) throw new Error(error.message)
+  return data ? mapClosing(data) : null
+}
+
+/**
+ * Fechamentos dos caixas abertos no período (RPC relatorio_caixas_periodo).
+ * Só owner, admin e manager.
+ */
+export async function getCashClosingPeriod(start: Date, end: Date): Promise<CashClosingReport[]> {
+  if (!isSupabaseConfigured || !supabase) return []
+
+  const { data, error } = await supabase.rpc('relatorio_caixas_periodo', {
+    p_start: start.toISOString(),
+    p_end: end.toISOString(),
+  })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map(mapClosing)
+}

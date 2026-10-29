@@ -1,0 +1,58 @@
+<!-- Template "Invite user" para Authentication > Email Templates no Supabase.
+     Cole o conteúdo no campo HTML do template. Mantenha {{ .ConfirmationURL }}:
+     é o link que leva ao /convite do Venddi. Não troque por outra URL. -->
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Convite para a equipe Venddi</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="background:#0EA572;padding:24px;text-align:center;color:#ffffff;">
+                <div style="font-size:22px;font-weight:bold;letter-spacing:0.5px;">Venddi</div>
+                <div style="font-size:13px;opacity:0.9;">Seu caixa simples. Sua loja sob controle.</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px 28px 8px 28px;">
+                <h1 style="margin:0 0 12px 0;font-size:20px;color:#111827;">Você foi convidado para a equipe</h1>
+                <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#374151;">
+                  Olá! Você recebeu acesso ao Venddi para trabalhar na sua loja.
+                  Para começar, defina sua senha clicando no botão abaixo.
+                </p>
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px auto;">
+                  <tr>
+                    <td align="center" style="border-radius:8px;background:#0EA572;">
+                      <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px;">
+                        Definir minha senha
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:0 0 8px 0;font-size:13px;line-height:1.6;color:#6b7280;">
+                  Se o botão não funcionar, copie e cole este endereço no navegador:<br />
+                  <span style="word-break:break-all;color:#0EA572;">{{ .ConfirmationURL }}</span>
+                </p>
+                <p style="margin:16px 0 0 0;font-size:13px;line-height:1.6;color:#6b7280;">
+                  O link é válido por tempo limitado. Se ele expirar, peça ao administrador da loja para reenviar o convite.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 28px 28px 28px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.6;color:#9ca3af;">
+                Se você não esperava este convite, pode ignorar este e-mail com segurança.
+                Ninguém terá acesso à sua conta sem definir a senha.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

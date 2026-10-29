@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input } from '@/components/ui'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { parseInviteLinkError } from '@/lib/invite'
 
 // Página do link de convite: o funcionário define a senha e depois entra pelo login.
 export function SetPasswordPage() {
   const navigate = useNavigate()
   const [hasSession, setHasSession] = useState<boolean | null>(null)
+  const linkError = parseInviteLinkError(window.location.hash)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -14,6 +16,10 @@ export function SetPasswordPage() {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
+      setHasSession(false)
+      return
+    }
+    if (linkError) {
       setHasSession(false)
       return
     }
@@ -35,7 +41,11 @@ export function SetPasswordPage() {
 
     try {
       setSaving(true)
-      const { error: updateError } = await supabase.auth.updateUser({ password })
+      // A marca password_set é o aceite do convite (usada pela Edge Function)
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+        data: { password_set: true },
+      })
       if (updateError) throw updateError
       // Sai da sessão do convite: o funcionário entra de novo com e-mail e senha
       await supabase.auth.signOut()
@@ -59,7 +69,11 @@ export function SetPasswordPage() {
 
           {hasSession === false && (
             <div className="space-y-4 text-center">
-              <p className="text-sm text-red-700">Este link é inválido ou expirou. Peça um novo convite ao administrador.</p>
+              <p className="text-sm text-red-700">
+                {linkError === 'expired'
+                  ? 'Este convite expirou. Peça ao administrador da sua loja para reenviar o convite.'
+                  : 'Este link é inválido ou já foi usado. Peça ao administrador da sua loja um novo convite.'}
+              </p>
               <Button variant="outline" onClick={() => navigate('/login')}>Ir para o login</Button>
             </div>
           )}
