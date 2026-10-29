@@ -80,7 +80,7 @@ BEGIN
     u.commission_percent,
     COUNT(s.id),
     COALESCE(SUM(s.total), 0)::NUMERIC,
-    ROUND(COALESCE(SUM(s.total), 0) * u.commission_percent / 100, 2)::NUMERIC
+    ROUND(COALESCE(SUM(s.total * s.commission_percent_snapshot), 0) / 100, 2)::NUMERIC
   FROM users u
   LEFT JOIN sales s
     ON s.operator_id = u.id
@@ -141,5 +141,57 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_payment_discount_cash_only ON payments;
 CREATE TRIGGER trg_payment_discount_cash_only
-  BEFORE INSERT ON payments
+  BEFORE INSERT OR UPDATE ON payments
   FOR EACH ROW EXECUTE FUNCTION check_discount_cash_only();
+
+-- ============================================
+-- COMISSÃO POR VENDA (snapshot)
+-- ============================================
+-- Cada venda guarda o percentual do operador no momento da venda. Alterar a
+-- comissão do funcionário depois não recalcula vendas antigas.
+-- Vendas anteriores a esta migration recebem o percentual atual do operador
+-- (não há histórico anterior para recuperar).
+ALTER TABLE sales ADD COLUMN IF NOT EXISTS commission_percent_snapshot NUMERIC(5,2);
+
+UPDATE sales s
+SET commission_percent_snapshot = COALESCE(u.commission_percent, 0)
+FROM users u
+WHERE u.id = s.operator_id AND s.commission_percent_snapshot IS NULL;
+
+UPDATE sales SET commission_percent_snapshot = 0 WHERE commission_percent_snapshot IS NULL;
+
+ALTER TABLE sales
+  ALTER COLUMN commission_percent_snapshot SET DEFAULT 0,
+  ALTER COLUMN commission_percent_snapshot SET NOT NULL;
+
+-- Na criação, copia o percentual do operador. Depois, o snapshot nunca muda, e o
+-- operador da venda só muda por owner ou admin (senão, um caixa poderia
+-- transferir vendas para si e receber comissão de outro).
+CREATE OR REPLACE FUNCTION snapshot_sale_commission()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    SELECT COALESCE(u.commission_percent, 0) INTO NEW.commission_percent_snapshot
+    FROM users u WHERE u.id = NEW.operator_id;
+    NEW.commission_percent_snapshot := COALESCE(NEW.commission_percent_snapshot, 0);
+  ELSE
+    NEW.commission_percent_snapshot := OLD.commission_percent_snapshot;
+    IF NEW.operator_id IS DISTINCT FROM OLD.operator_id
+       AND auth.uid() IS NOT NULL
+       AND get_user_role() IS DISTINCT FROM 'owner'
+       AND get_user_role() IS DISTINCT FROM 'admin' THEN
+      RAISE EXCEPTION 'Apenas owner ou admin podem alterar o operador de uma venda' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sale_commission_snapshot ON sales;
+CREATE TRIGGER trg_sale_commission_snapshot
+  BEFORE INSERT OR UPDATE ON sales
+  FOR EACH ROW EXECUTE FUNCTION snapshot_sale_commission();

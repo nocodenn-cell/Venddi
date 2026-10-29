@@ -108,10 +108,22 @@ export async function signUp(data: SignUpData): Promise<AuthResponse> {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
+      // Guardados para provisionar a empresa quando não houver sessão (confirmação de e-mail)
+      options: {
+        data: { company_name: data.companyName, cnpj: data.cnpj, full_name: data.fullName },
+      },
     })
     
     if (authError) throw authError
     if (!authData.user) throw new Error('Erro ao criar usuário')
+
+    // Sem sessão: a confirmação de e-mail está ativa. A empresa é criada no primeiro login.
+    if (!authData.session) {
+      return {
+        user: null,
+        error: 'Enviamos um e-mail de confirmação. Confirme sua conta e depois entre na Venddi.',
+      }
+    }
 
     // Empresa, usuário owner e trial são criados atomicamente no banco (migration 012)
     const { data: tenant, error: tenantError } = await supabase.rpc('register_tenant', {
@@ -178,6 +190,25 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
     
     if (authError) throw authError
     if (!authData.user) throw new Error('Erro ao autenticar')
+
+    // Conta criada com confirmação de e-mail: provisiona a empresa no primeiro login
+    const meta = authData.user.user_metadata ?? {}
+    if (meta.company_name) {
+      const { data: existingRow } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', authData.user.id)
+        .maybeSingle()
+      if (!existingRow) {
+        const { error: tenantError } = await supabase.rpc('register_tenant', {
+          p_company_name: meta.company_name,
+          p_cnpj: meta.cnpj,
+          p_full_name: meta.full_name,
+          p_plan: 'starter',
+        })
+        if (tenantError) throw tenantError
+      }
+    }
     
     // Get user record from database
     const { data: userData, error: userError } = await supabase

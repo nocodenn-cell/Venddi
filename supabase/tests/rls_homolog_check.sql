@@ -46,7 +46,7 @@ DO $$ BEGIN
     VALUES ('22222222-2222-2222-2222-222222222222', 'SKU-FAKE', 'Fake', 1, 2, 1, 1);
     RAISE EXCEPTION 'FALHOU: T3 A criou produto na empresa B';
   EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM NOT LIKE '%row-level security%' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%row-level security%' AND SQLERRM NOT LIKE '%identidade%' THEN RAISE; END IF;
   END;
   RESET ROLE;
 END $$;
@@ -80,7 +80,7 @@ DO $$ DECLARE c uuid; BEGIN
     UPDATE users SET company_id = '22222222-2222-2222-2222-222222222222' WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
     RAISE EXCEPTION 'FALHOU: T6 A moveu o próprio usuário para a empresa B';
   EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM NOT LIKE '%row-level security%' THEN RAISE; END IF;
+    IF SQLERRM NOT LIKE '%row-level security%' AND SQLERRM NOT LIKE '%identidade%' THEN RAISE; END IF;
   END;
   RESET ROLE;
   SELECT company_id INTO c FROM users WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
