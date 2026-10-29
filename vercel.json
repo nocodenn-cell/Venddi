@@ -1,0 +1,11 @@
+{
+  "routes": [
+    { "src": "/", "dest": "https://landing-jinlong.vercel.app/" },
+    { "src": "/obrigado/?", "dest": "https://landing-jinlong.vercel.app/obrigado/" },
+    { "src": "/_next/(.*)", "dest": "https://landing-jinlong.vercel.app/_next/$1" },
+    { "src": "/sitemap\\.xml", "dest": "https://landing-jinlong.vercel.app/sitemap.xml" },
+    { "src": "/robots\\.txt", "dest": "https://landing-jinlong.vercel.app/robots.txt" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
