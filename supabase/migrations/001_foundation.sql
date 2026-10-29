@@ -20,7 +20,7 @@ CREATE TYPE account_status AS ENUM ('active', 'suspended', 'cancelled');
 -- COMPANIES TABLE
 -- ============================================
 CREATE TABLE companies (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   trade_name VARCHAR(255),
   cnpj VARCHAR(18) UNIQUE NOT NULL,
@@ -50,7 +50,7 @@ CREATE INDEX idx_companies_status ON companies(status);
 -- USERS TABLE
 -- ============================================
 CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   -- Auth
@@ -79,7 +79,7 @@ CREATE INDEX idx_users_active ON users(is_active);
 -- AUDIT LOG TABLE
 -- ============================================
 CREATE TABLE audit_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   

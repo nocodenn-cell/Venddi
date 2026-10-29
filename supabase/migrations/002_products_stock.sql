@@ -7,7 +7,7 @@
 -- CATEGORIES TABLE
 -- ============================================
 CREATE TABLE categories (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
   description TEXT,
@@ -27,7 +27,7 @@ CREATE INDEX idx_categories_parent ON categories(parent_id);
 -- PRODUCTS TABLE
 -- ============================================
 CREATE TABLE products (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   
@@ -69,7 +69,7 @@ CREATE INDEX idx_products_low_stock ON products(company_id) WHERE stock_quantity
 -- STOCK MOVEMENTS TABLE
 -- ============================================
 CREATE TABLE stock_movements (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,

@@ -7,7 +7,7 @@
 -- CUSTOMERS TABLE
 -- ============================================
 CREATE TABLE customers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   -- Identification
@@ -44,7 +44,7 @@ CREATE INDEX idx_customers_name ON customers(name);
 -- SUPPLIERS TABLE
 -- ============================================
 CREATE TABLE suppliers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   -- Identification
@@ -77,7 +77,7 @@ CREATE INDEX idx_suppliers_cnpj ON suppliers(cnpj);
 -- SALES TABLE
 -- ============================================
 CREATE TABLE sales (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   salesperson_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -117,7 +117,7 @@ CREATE INDEX idx_sales_idempotency ON sales(idempotency_key);
 -- SALE ITEMS TABLE
 -- ============================================
 CREATE TABLE sale_items (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES products(id),
   
@@ -141,7 +141,7 @@ CREATE INDEX idx_sale_items_product ON sale_items(product_id);
 -- PAYMENTS TABLE
 -- ============================================
 CREATE TABLE payments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
   
   -- Payment

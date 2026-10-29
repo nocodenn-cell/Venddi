@@ -7,7 +7,7 @@
 -- FISCAL CONFIGURATIONS TABLE
 -- ============================================
 CREATE TABLE fiscal_configurations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
   -- Provider configuration
@@ -53,7 +53,7 @@ CREATE INDEX idx_fiscal_configurations_active ON fiscal_configurations(is_active
 -- PRODUCT FISCAL DATA TABLE
 -- ============================================
 CREATE TABLE product_fiscal_data (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   
@@ -102,7 +102,7 @@ CREATE INDEX idx_product_fiscal_data_cfop ON product_fiscal_data(cfop);
 -- FISCAL DOCUMENTS TABLE
 -- ============================================
 CREATE TABLE fiscal_documents (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   sale_id UUID NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
   
@@ -162,7 +162,7 @@ CREATE INDEX idx_fiscal_documents_created ON fiscal_documents(created_at);
 -- FISCAL EVENTS TABLE (Audit Log)
 -- ============================================
 CREATE TABLE fiscal_events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   fiscal_document_id UUID NOT NULL REFERENCES fiscal_documents(id) ON DELETE CASCADE,
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   

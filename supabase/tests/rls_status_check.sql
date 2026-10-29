@@ -1,0 +1,22 @@
+BEGIN;
+INSERT INTO companies (id, name, cnpj, plan, status) VALUES ('11111111-1111-1111-1111-111111111111','A','11.111.111/1111-11','starter','active');
+INSERT INTO company_subscriptions (company_id, plan, status, trial_days) VALUES ('11111111-1111-1111-1111-111111111111','starter','active',15);
+INSERT INTO users (id, company_id, auth_id, email, full_name, role, is_active) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','a0000000-0000-4000-8000-00000000000a','a@t.com','A','owner',true);
+INSERT INTO products (company_id, sku, name, cost_price, sell_price, stock_quantity, min_stock) VALUES ('11111111-1111-1111-1111-111111111111','S1','P',1,2,1,1);
+DO $$ DECLARE n int; BEGIN
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-00000000000a',true);
+  SELECT count(*) INTO n FROM products; IF n <> 1 THEN RAISE EXCEPTION 'FALHOU: ativo deveria ver 1, veio %', n; END IF;
+  RESET ROLE;
+  UPDATE companies SET status = 'suspended' WHERE id = '11111111-1111-1111-1111-111111111111';
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM products; IF n <> 0 THEN RAISE EXCEPTION 'FALHOU: empresa suspensa ainda vê %', n; END IF;
+  RESET ROLE;
+  UPDATE companies SET status = 'active' WHERE id = '11111111-1111-1111-1111-111111111111';
+  UPDATE users SET is_active = false WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM products; IF n <> 0 THEN RAISE EXCEPTION 'FALHOU: usuario inativo ainda ve %', n; END IF;
+  RESET ROLE;
+END $$;
+SELECT 'STATUS GUARD OK' AS r;
+ROLLBACK;

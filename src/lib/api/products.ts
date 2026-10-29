@@ -1,4 +1,5 @@
 import { supabase, getSupabase, isSupabaseConfigured } from '@/lib/supabase'
+import { getCurrentCompanyId } from '@/lib/store/auth'
 import { z } from 'zod'
 
 // Product validation schema
@@ -58,7 +59,7 @@ export interface PaginatedResponse<T> {
 const mockProducts: Product[] = [
   {
     id: 'prod_001',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     categoryId: null,
     sku: 'CAM-001',
     barcode: '7891234567890',
@@ -74,7 +75,7 @@ const mockProducts: Product[] = [
   },
   {
     id: 'prod_002',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     categoryId: null,
     sku: 'CAL-002',
     barcode: '7891234567891',
@@ -90,7 +91,7 @@ const mockProducts: Product[] = [
   },
   {
     id: 'prod_003',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     categoryId: null,
     sku: 'TEN-003',
     barcode: '7891234567892',
@@ -106,7 +107,7 @@ const mockProducts: Product[] = [
   },
   {
     id: 'prod_004',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     categoryId: null,
     sku: 'BON-004',
     barcode: '7891234567893',
@@ -122,7 +123,7 @@ const mockProducts: Product[] = [
   },
   {
     id: 'prod_005',
-    companyId: 'cmp_001',
+    companyId: getCurrentCompanyId(),
     categoryId: null,
     sku: 'MEI-005',
     barcode: '7891234567894',
@@ -306,7 +307,7 @@ export async function createProduct(input: ProductInput): Promise<Product> {
     
     const newProduct: Product = {
       id: `prod_${Date.now()}`,
-      companyId: 'cmp_001', // Would come from auth context
+      companyId: getCurrentCompanyId(), // Would come from auth context
       categoryId: validated.categoryId || null,
       sku: validated.sku,
       barcode: validated.barcode || null,
@@ -473,4 +474,28 @@ export async function activateProduct(id: string): Promise<Product> {
  */
 export async function deactivateProduct(id: string): Promise<Product> {
   return updateProduct(id, { isActive: false })
+}
+
+/**
+ * Registra entrada de estoque (compra, reposição). Só owner, admin e manager.
+ * Soma ao estoque e grava o movimento na mesma transação (RPC registrar_entrada_estoque).
+ */
+export async function registerStockEntry(params: {
+  productId: string
+  quantity: number
+  reason?: string
+}): Promise<{ newBalance: number }> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Entrada de estoque requer Supabase configurado')
+  }
+
+  const { data, error } = await supabase.rpc('registrar_entrada_estoque', {
+    p_product_id: params.productId,
+    p_quantity: params.quantity,
+    p_reason: params.reason ?? null,
+  })
+
+  if (error) throw new Error(error.message)
+
+  return { newBalance: data.new_balance }
 }

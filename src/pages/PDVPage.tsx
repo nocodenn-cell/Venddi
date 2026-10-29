@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText, Keyboard } from 'lucide-react'
 import { createSale } from '@/lib/api/sales'
+import { roundToCents } from '@/lib/schemas/sales'
 import { getOpenCashRegister } from '@/lib/api/cashRegister'
 import { emitNfceForSale } from '@/lib/api/fiscal'
 import { useAuthStore } from '@/lib/store/auth'
@@ -25,7 +27,7 @@ interface Payment {
   changeAmount?: number
 }
 
-export function PDVPage() {
+function PDVSalesScreen() {
   const { user, company } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
@@ -34,6 +36,7 @@ export function PDVPage() {
   const [error, setError] = useState<string | null>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
+  const [discountPercent, setDiscountPercent] = useState('')
   const [lastSale, setLastSale] = useState<any>(null)
   const [fiscalStatus, setFiscalStatus] = useState<'idle' | 'emitting' | 'success' | 'error'>('idle')
   const [fiscalMessage, setFiscalMessage] = useState<string>('')
@@ -131,6 +134,14 @@ export function PDVPage() {
   }
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+
+  // Desconto: até 5% do subtotal, só com pagamento em dinheiro, sem autorização do gerente
+  const MAX_DISCOUNT_PERCENT = 5
+  const discountPct = Number(discountPercent) || 0
+  const discountInvalid = discountPct < 0 || discountPct > MAX_DISCOUNT_PERCENT
+  const discountValue = discountInvalid ? 0 : roundToCents(total * discountPct / 100)
+  const amountDue = roundToCents(total - discountValue)
+  const hasNonCashPayment = payments.some(p => p.method !== 'cash')
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -291,9 +302,10 @@ export function PDVPage() {
         onClose={() => {
           setShowPaymentModal(false)
           setPayments([])
+          setDiscountPercent('')
         }}
         title="Finalizar Venda"
-        description={`Total: R$ ${total.toFixed(2)}`}
+        description={`Total: R$ ${amountDue.toFixed(2)}`}
       >
         <div className="space-y-4">
           {error && (
@@ -311,18 +323,45 @@ export function PDVPage() {
           )}
 
           <div className="space-y-2">
+            <h4 className="font-semibold text-sm">Desconto (até 5%, só em dinheiro)</h4>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={MAX_DISCOUNT_PERCENT}
+                step="0.5"
+                placeholder="0"
+                value={discountPercent}
+                onChange={(e) => {
+                  setDiscountPercent(e.target.value)
+                  setPayments([])
+                }}
+                disabled={hasNonCashPayment}
+                className="w-24"
+              />
+              <span className="text-sm text-gray-600">% = − R$ {discountValue.toFixed(2)}</span>
+            </div>
+            {discountInvalid && (
+              <p className="text-xs text-red-600">Desconto máximo de 5% sem autorização do gerente</p>
+            )}
+            {hasNonCashPayment && (
+              <p className="text-xs text-gray-500">Remova os pagamentos que não são em dinheiro para aplicar desconto</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <h4 className="font-semibold text-sm">Formas de Pagamento</h4>
             
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = total - payments.reduce((sum, p) => sum + p.amount, 0)
+                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
                   if (remaining > 0) {
                     setPayments([...payments, { method: 'cash', amount: remaining, receivedAmount: remaining, changeAmount: 0 }])
                   }
                 }}
-                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= total}
+                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue}
               >
                 <Banknote className="h-4 w-4 mr-2" />
                 Dinheiro
@@ -331,12 +370,12 @@ export function PDVPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = total - payments.reduce((sum, p) => sum + p.amount, 0)
+                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
                   if (remaining > 0) {
                     setPayments([...payments, { method: 'credit_card', amount: remaining }])
                   }
                 }}
-                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= total}
+                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue || discountPct > 0}
               >
                 <CreditCard className="h-4 w-4 mr-2" />
                 Cartão
@@ -345,12 +384,12 @@ export function PDVPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = total - payments.reduce((sum, p) => sum + p.amount, 0)
+                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
                   if (remaining > 0) {
                     setPayments([...payments, { method: 'debit_card', amount: remaining }])
                   }
                 }}
-                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= total}
+                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue || discountPct > 0}
               >
                 <CreditCard className="h-4 w-4 mr-2" />
                 Débito
@@ -359,12 +398,12 @@ export function PDVPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = total - payments.reduce((sum, p) => sum + p.amount, 0)
+                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
                   if (remaining > 0) {
                     setPayments([...payments, { method: 'pix', amount: remaining }])
                   }
                 }}
-                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= total}
+                disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue || discountPct > 0}
               >
                 <QrCode className="h-4 w-4 mr-2" />
                 PIX
@@ -432,8 +471,17 @@ export function PDVPage() {
               onClick={async () => {
                 if (!user || !cashRegisterId) return
                 
+                if (discountInvalid) {
+                  setError('Desconto máximo de 5% sem autorização do gerente')
+                  return
+                }
+                if (discountValue > 0 && hasNonCashPayment) {
+                  setError('Venda com desconto só pode ser paga em dinheiro')
+                  return
+                }
+
                 const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
-                if (Math.abs(totalPaid - total) > 0.01) {
+                if (Math.abs(totalPaid - amountDue) > 0.01) {
                   setError('Total dos pagamentos não corresponde ao total da venda')
                   return
                 }
@@ -445,6 +493,7 @@ export function PDVPage() {
                   // Step 1: Create sale
                   const sale = await createSale({
                     idempotencyKey: uuidv4(),
+                    companyId: company?.id ?? '',
                     items: cart.map(item => ({
                       productId: item.id,
                       productName: item.name,
@@ -463,7 +512,7 @@ export function PDVPage() {
                     operatorId: user.id,
                     operatorName: user.fullName,
                     cashRegisterId,
-                    discount: 0,
+                    discount: discountValue,
                     additionalExpenses: 0,
                   })
 
@@ -478,11 +527,13 @@ export function PDVPage() {
                   if (continuousMode) {
                     setContinuousSalesCount(prev => prev + 1)
                     setPayments([])
+                    setDiscountPercent('')
                     setShowPaymentModal(false)
                     // Keep cart for continuous sales
                   } else {
                     setCart([])
                     setPayments([])
+                    setDiscountPercent('')
                     setShowPaymentModal(false)
                   }
                   
@@ -516,6 +567,71 @@ export function PDVPage() {
         isOpen={showShortcutsHelp}
         onClose={() => setShowShortcutsHelp(false)}
       />
+    </div>
+  )
+}
+
+// PDV fechado por padrão: a tela de venda só aparece depois que o operador abre o PDV.
+// Ao sair da tela (ou clicar em Fechar), ele volta a ficar fechado.
+export function PDVPage() {
+  const { user } = useAuthStore()
+  const [pdvOpen, setPdvOpen] = useState(false)
+  const [caixaAberto, setCaixaAberto] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let active = true
+    const check = async () => {
+      if (!user) return
+      try {
+        const register = await getOpenCashRegister(user.id)
+        if (active) setCaixaAberto(!!register)
+      } catch {
+        if (active) setCaixaAberto(false)
+      }
+    }
+    check()
+    return () => {
+      active = false
+    }
+  }, [user])
+
+  if (caixaAberto === null) {
+    return <div className="p-6 text-sm text-gray-500">Verificando caixa...</div>
+  }
+
+  if (!pdvOpen) {
+    return (
+      <Card className="max-w-xl mx-auto mt-8">
+        <CardHeader>
+          <CardTitle>PDV fechado</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            O ponto de venda só abre quando você precisa vender. Use o menu para outras funções.
+          </p>
+          {caixaAberto ? (
+            <Button onClick={() => setPdvOpen(true)}>Abrir PDV</Button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-amber-700">Abra o caixa antes de vender.</p>
+              <Link to="/app/caixas" className="text-sm font-medium text-[#0EA572] hover:underline">
+                Ir para Caixas
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <Button variant="outline" onClick={() => setPdvOpen(false)}>
+          Fechar PDV
+        </Button>
+      </div>
+      <PDVSalesScreen />
     </div>
   )
 }

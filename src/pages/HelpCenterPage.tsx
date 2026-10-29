@@ -41,9 +41,14 @@ const faqItems: FAQItem[] = [
     category: 'Relatórios',
   },
   {
-    question: 'O que acontece quando meu trial de 30 dias acabar?',
-    answer: 'Você receberá notificações antes do vencimento. Após o trial, você pode escolher um plano pago para continuar usando a Venddi. Seus dados serão preservados por 30 dias.',
+    question: 'O que acontece quando meu trial de 15 dias acabar?',
+    answer: 'Você receberá notificações antes do vencimento. Após o trial, você pode escolher um plano pago para continuar usando a Venddi. Seus dados serão preservados por 30 dias após o fim do trial.',
     category: 'Assinatura',
+  },
+  {
+    question: 'A Venddi emite nota fiscal (NFC-e)?',
+    answer: 'Não nesta versão. A emissão de NFC-e está em desenvolvimento para uma fase futura. Hoje o sistema registra as vendas e o caixa, mas não emite documentos fiscais.',
+    category: 'Fiscal',
   },
   {
     question: 'Posso usar a Venddi em mais de um computador?',

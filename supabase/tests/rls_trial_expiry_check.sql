@@ -1,0 +1,26 @@
+BEGIN;
+INSERT INTO companies (id, name, cnpj, plan, status) VALUES ('11111111-1111-1111-1111-111111111111','A','11.111.111/1111-11','starter','active');
+INSERT INTO users (id, company_id, auth_id, email, full_name, role, is_active) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','11111111-1111-1111-1111-111111111111','a0000000-0000-4000-8000-00000000000a','a@t.com','A','owner',true);
+INSERT INTO company_subscriptions (company_id, plan, status, trial_days) VALUES ('11111111-1111-1111-1111-111111111111','starter','trial',15);
+INSERT INTO products (company_id, sku, name, cost_price, sell_price, stock_quantity, min_stock) VALUES ('11111111-1111-1111-1111-111111111111','S1','P',1,2,1,1);
+DO $$ DECLARE n int; d int; BEGIN
+  SELECT trial_days INTO d FROM company_subscriptions WHERE company_id = '11111111-1111-1111-1111-111111111111';
+  IF d <> 15 THEN RAISE EXCEPTION 'FALHOU: trial_days %', d; END IF;
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-00000000000a',true);
+  SELECT count(*) INTO n FROM products; IF n <> 1 THEN RAISE EXCEPTION 'FALHOU: trial vigente deveria ver 1, veio %', n; END IF;
+  RESET ROLE;
+  UPDATE company_subscriptions SET trial_end_date = now() - interval '1 day' WHERE company_id = '11111111-1111-1111-1111-111111111111';
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-00000000000a',true);
+  SELECT count(*) INTO n FROM products; IF n <> 0 THEN RAISE EXCEPTION 'FALHOU: trial expirado ainda vê %', n; END IF;
+  SELECT count(*) INTO n FROM company_subscriptions; IF n <> 1 THEN RAISE EXCEPTION 'FALHOU: assinatura expirada não é legível (%)', n; END IF;
+  RESET ROLE;
+  UPDATE company_subscriptions SET status = 'active' WHERE company_id = '11111111-1111-1111-1111-111111111111';
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-00000000000a',true);
+  SELECT count(*) INTO n FROM products; IF n <> 1 THEN RAISE EXCEPTION 'FALHOU: assinatura ativa deveria ver 1, veio %', n; END IF;
+  RESET ROLE;
+END $$;
+SELECT 'TRIAL EXPIRY OK' AS r;
+ROLLBACK;

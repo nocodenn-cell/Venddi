@@ -89,9 +89,11 @@ export function LoginPage() {
               </Link>
             </div>
 
-            <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700">
-              <strong>Demo:</strong> admin@venddi.com / admin123
-            </div>
+            {import.meta.env.DEV && (
+              <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700">
+                <strong>Demo (somente dev):</strong> admin@venddi.com / admin123
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>

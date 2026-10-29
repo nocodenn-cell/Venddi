@@ -20,8 +20,8 @@ ALTER TABLE cash_movements ADD COLUMN IF NOT EXISTS operator_id UUID REFERENCES 
 -- ISSUE 3: Fix SECURITY DEFINER functions with search_path
 -- ============================================
 
--- Drop and recreate get_user_company_id with search_path
-DROP FUNCTION IF EXISTS get_user_company_id();
+-- Replace get_user_company_id with search_path (CREATE OR REPLACE, sem DROP:
+-- as políticas RLS dependem dessa função e o DROP falharia)
 CREATE OR REPLACE FUNCTION get_user_company_id()
 RETURNS UUID AS $$
 BEGIN
@@ -34,15 +34,15 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Drop and recreate create_atomic_sale with fixes
-DROP FUNCTION IF EXISTS create_atomic_sale(UUID, UUID, UUID, UUID, JSONB, JSONB, DECIMAL, DECIMAL, TEXT, UUID);
+DROP FUNCTION IF EXISTS create_atomic_sale(UUID, UUID, UUID, JSONB, JSONB, UUID, DECIMAL, DECIMAL, TEXT, UUID);
 
 CREATE OR REPLACE FUNCTION create_atomic_sale(
   p_company_id UUID,
   p_operator_id UUID,
   p_cash_register_id UUID,
-  p_customer_id UUID DEFAULT NULL,
   p_items JSONB,
   p_payments JSONB,
+  p_customer_id UUID DEFAULT NULL,
   p_discount DECIMAL DEFAULT 0,
   p_additional_expenses DECIMAL DEFAULT 0,
   p_notes TEXT DEFAULT NULL,

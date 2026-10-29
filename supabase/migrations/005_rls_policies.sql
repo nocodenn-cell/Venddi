@@ -123,6 +123,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ============================================
+-- POLICY FOR SALE CHILD TABLES
+-- ============================================
+-- sale_items e payments não têm company_id: o acesso segue a venda (sales),
+-- que já é isolada por empresa pela sua própria policy.
+CREATE OR REPLACE FUNCTION create_sale_child_rls_policies(table_name TEXT)
+RETURNS VOID AS $$
+BEGIN
+  EXECUTE format(
+    'CREATE POLICY "Users can view company %I" ON %I FOR SELECT USING (sale_id IN (SELECT id FROM sales))',
+    table_name, table_name
+  );
+  EXECUTE format(
+    'CREATE POLICY "Users can insert company %I" ON %I FOR INSERT WITH CHECK (sale_id IN (SELECT id FROM sales))',
+    table_name, table_name
+  );
+  EXECUTE format(
+    'CREATE POLICY "Users can update company %I" ON %I FOR UPDATE USING (sale_id IN (SELECT id FROM sales))',
+    table_name, table_name
+  );
+  EXECUTE format(
+    'CREATE POLICY "Users can delete company %I" ON %I FOR DELETE USING (sale_id IN (SELECT id FROM sales))',
+    table_name, table_name
+  );
+END;
+$$ LANGUAGE plpgsql;
+
 -- Apply to all company-scoped tables
 SELECT create_company_rls_policies('audit_logs');
 SELECT create_company_rls_policies('categories');
@@ -131,8 +158,8 @@ SELECT create_company_rls_policies('stock_movements');
 SELECT create_company_rls_policies('customers');
 SELECT create_company_rls_policies('suppliers');
 SELECT create_company_rls_policies('sales');
-SELECT create_company_rls_policies('sale_items');
-SELECT create_company_rls_policies('payments');
+SELECT create_sale_child_rls_policies('sale_items');
+SELECT create_sale_child_rls_policies('payments');
 SELECT create_company_rls_policies('cash_registers');
 SELECT create_company_rls_policies('cash_movements');
 SELECT create_company_rls_policies('financial_accounts');

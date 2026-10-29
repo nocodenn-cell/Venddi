@@ -15,24 +15,25 @@ VALUES
   ('22222222-2222-2222-2222-222222222222', 'Company B', '22.222.222/2222-22', 'starter', 'active');
 
 -- Create users for each company
+INSERT INTO company_subscriptions (company_id, plan, status, trial_days) VALUES ('11111111-1111-1111-1111-111111111111','starter','active',15), ('22222222-2222-2222-2222-222222222222','starter','active',15);
 INSERT INTO users (id, company_id, auth_id, email, full_name, role, is_active)
 VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'auth-user-a', 'user-a@test.com', 'User A', 'owner', true),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'auth-user-b', 'user-b@test.com', 'User B', 'owner', true);
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'a0000000-0000-4000-8000-00000000000a', 'user-a@test.com', 'User A', 'owner', true),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'b0000000-0000-4000-8000-00000000000b', 'user-b@test.com', 'User B', 'owner', true);
 
 -- Create products for each company
 INSERT INTO products (id, company_id, sku, name, cost_price, sell_price, stock_quantity, min_stock, is_active)
 VALUES
-  ('prod-aaaa-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'SKU-A1', 'Product A1', 10.00, 20.00, 100, 10, true),
-  ('prod-aaaa-2222-2222-2222-222222222222', '11111111-1111-1111-1111-111111111111', 'SKU-A2', 'Product A2', 15.00, 30.00, 50, 5, true),
-  ('prod-bbbb-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', 'SKU-B1', 'Product B1', 12.00, 25.00, 75, 8, true);
+  ('d0000000-0000-4000-8000-000000000011', '11111111-1111-1111-1111-111111111111', 'SKU-A1', 'Product A1', 10.00, 20.00, 100, 10, true),
+  ('d0000000-0000-4000-8000-000000000022', '11111111-1111-1111-1111-111111111111', 'SKU-A2', 'Product A2', 15.00, 30.00, 50, 5, true),
+  ('d0000000-0000-4000-8000-0000000000b1', '22222222-2222-2222-2222-222222222222', 'SKU-B1', 'Product B1', 12.00, 25.00, 75, 8, true);
 
 -- ============================================
 -- TEST 1: Company A cannot view Company B products
 -- ============================================
 -- Simulate User A session
 SET LOCAL ROLE authenticated;
-SET request.jwt.claim.sub = 'auth-user-a';
+SET request.jwt.claim.sub = 'a0000000-0000-4000-8000-00000000000a';
 
 -- This should return only Company A products (2 rows)
 SELECT COUNT(*) as test1_count FROM products;
@@ -48,15 +49,15 @@ RESET ROLE;
 -- TEST 2: Company A cannot update Company B products
 -- ============================================
 SET LOCAL ROLE authenticated;
-SET request.jwt.claim.sub = 'auth-user-a';
+SET request.jwt.claim.sub = 'a0000000-0000-4000-8000-00000000000a';
 
 -- Try to update Company B product (should fail silently - 0 rows affected)
 UPDATE products 
 SET name = 'HACKED' 
-WHERE id = 'prod-bbbb-1111-1111-1111-111111111111';
+WHERE id = 'd0000000-0000-4000-8000-0000000000b1';
 
 -- Verify product was not changed
-SELECT name FROM products WHERE id = 'prod-bbbb-1111-1111-1111-111111111111';
+SELECT name FROM products WHERE id = 'd0000000-0000-4000-8000-0000000000b1';
 -- Expected: 'Product B1' (not 'HACKED')
 
 RESET ROLE;
@@ -65,13 +66,13 @@ RESET ROLE;
 -- TEST 3: Company A cannot delete Company B products
 -- ============================================
 SET LOCAL ROLE authenticated;
-SET request.jwt.claim.sub = 'auth-user-a';
+SET request.jwt.claim.sub = 'a0000000-0000-4000-8000-00000000000a';
 
 -- Try to delete Company B product (should fail silently)
-DELETE FROM products WHERE id = 'prod-bbbb-1111-1111-1111-111111111111';
+DELETE FROM products WHERE id = 'd0000000-0000-4000-8000-0000000000b1';
 
 -- Verify product still exists
-SELECT COUNT(*) as test3_exists FROM products WHERE id = 'prod-bbbb-1111-1111-1111-111111111111';
+SELECT COUNT(*) as test3_exists FROM products WHERE id = 'd0000000-0000-4000-8000-0000000000b1';
 -- Expected: 1
 
 RESET ROLE;
@@ -91,22 +92,23 @@ SELECT COUNT(*) as test4_companies FROM companies;
 RESET ROLE;
 
 -- ============================================
--- TEST 5: User cannot elevate their own role
+-- TEST 5: Owner can promote another user of the same company to admin
+-- (regra: owner gerencia papéis dos usuários da própria empresa)
 -- ============================================
 SET LOCAL ROLE authenticated;
-SET request.jwt.claim.sub = 'auth-user-b';
+SET request.jwt.claim.sub = 'b0000000-0000-4000-8000-00000000000b';
 
 -- User B is 'owner', try to update another user's role
 -- First, create a cashier user
 INSERT INTO users (id, company_id, auth_id, email, full_name, role, is_active)
-VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'auth-user-c', 'user-c@test.com', 'User C', 'cashier', true);
+VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'c0000000-0000-4000-8000-00000000000c', 'user-c@test.com', 'User C', 'cashier', true);
 
--- Try to promote cashier to admin (should be blocked by policy)
+-- Owner promotes cashier to admin (permitido pela policy "Owners and admins can update users")
 UPDATE users SET role = 'admin' WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
 
--- Verify role was not changed
+-- Verify role was changed
 SELECT role FROM users WHERE id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
--- Expected: 'cashier' (not 'admin')
+-- Expected: 'admin'
 
 RESET ROLE;
 
@@ -114,7 +116,7 @@ RESET ROLE;
 -- TEST 6: User cannot change their company_id
 -- ============================================
 SET LOCAL ROLE authenticated;
-SET request.jwt.claim.sub = 'auth-user-a';
+SET request.jwt.claim.sub = 'a0000000-0000-4000-8000-00000000000a';
 
 -- Try to move User A to Company B (should be blocked)
 UPDATE users SET company_id = '22222222-2222-2222-2222-222222222222' WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -135,9 +137,9 @@ RESET ROLE;
 -- CLEANUP
 -- ============================================
 DELETE FROM products WHERE id IN (
-  'prod-aaaa-1111-1111-1111-111111111111',
-  'prod-aaaa-2222-2222-2222-222222222222',
-  'prod-bbbb-1111-1111-1111-111111111111'
+  'd0000000-0000-4000-8000-000000000011',
+  'd0000000-0000-4000-8000-000000000022',
+  'd0000000-0000-4000-8000-0000000000b1'
 );
 
 DELETE FROM users WHERE id IN (
