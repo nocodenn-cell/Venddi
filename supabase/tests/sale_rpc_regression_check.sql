@@ -11,6 +11,9 @@ BEGIN;
 
 INSERT INTO companies (id, name, cnpj, plan, status) VALUES
   ('33333333-3333-3333-3333-333333333333', 'Loja Venda', '33.333.333/0001-33', 'starter', 'active');
+-- Sem assinatura ativa a empresa não resolve (controle de trial, migration 016).
+INSERT INTO company_subscriptions (company_id, plan, status, trial_days) VALUES
+  ('33333333-3333-3333-3333-333333333333', 'starter', 'active', 15);
 INSERT INTO users (id, company_id, auth_id, email, full_name, role, is_active) VALUES
   ('e3000000-0000-4000-8000-000000000001', '33333333-3333-3333-3333-333333333333', 'e3000000-0000-4000-8000-0000000000a1', 'owner@venda.test', 'Owner Venda', 'owner', true),
   ('e3000000-0000-4000-8000-000000000002', '33333333-3333-3333-3333-333333333333', 'e3000000-0000-4000-8000-0000000000a2', 'caixa@venda.test', 'Caixa Venda', 'cashier', true);
@@ -25,6 +28,7 @@ DECLARE
   OWNER_AUTH CONSTANT UUID := 'e3000000-0000-4000-8000-0000000000a1';
   CAIXA_AUTH CONSTANT UUID := 'e3000000-0000-4000-8000-0000000000a2';
   CAIXA CONSTANT UUID := 'e3000000-0000-4000-8000-000000000002';
+  OWNER CONSTANT UUID := 'e3000000-0000-4000-8000-000000000001';
   CR CONSTANT UUID := 'e3000000-0000-4000-8000-000000000021';
   P CONSTANT UUID := 'e3000000-0000-4000-8000-000000000011';
   r JSONB;
@@ -51,7 +55,7 @@ BEGIN
   -- 2. Estorno com movimento de caixa (cancel_sale_with_reversal, como gerente/owner)
   PERFORM set_config('request.jwt.claim.sub', OWNER_AUTH::text, true);
   SET LOCAL ROLE authenticated;
-  r := cancel_sale_with_reversal(v_sale, CO, CAIXA, 'Teste de regressão');
+  r := cancel_sale_with_reversal(v_sale, CO, OWNER, 'Teste de regressão');
   RESET ROLE;
   IF NOT (r->>'success')::boolean THEN RAISE EXCEPTION 'FALHOU: estorno recusado: %', r; END IF;
 
