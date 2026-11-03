@@ -1,5 +1,7 @@
 import { supabase, getSupabase, isSupabaseConfigured } from '@/lib/supabase'
 import { getCurrentCompanyId } from '@/lib/store/auth'
+import { fetchAllRows } from '@/lib/api/paginate'
+import { lowStockProductIds } from '@/lib/stock/lowStock'
 import { z } from 'zod'
 
 // Product validation schema
@@ -186,8 +188,28 @@ export async function getProducts(
   }
   
   try {
+    // Estoque baixo compara duas colunas (stock_quantity <= min_stock), o que o PostgREST não
+    // expressa. Calcula os ids a partir dos produtos ativos e filtra por eles.
+    let lowStockIds: string[] | null = null
+    if (filters.lowStock) {
+      const candidates = await fetchAllRows<{ id: string; stock_quantity: number; min_stock: number }>((from, to) =>
+        supabase!
+          .from('products')
+          .select('id, stock_quantity, min_stock')
+          .eq('is_active', true)
+          .order('id')
+          .range(from, to)
+      )
+      lowStockIds = lowStockProductIds(
+        candidates.map((p) => ({ id: p.id, stockQuantity: p.stock_quantity, minStock: p.min_stock }))
+      )
+      if (lowStockIds.length === 0) {
+        return { data: [], total: 0, page: pagination.page, pageSize: pagination.pageSize, totalPages: 0 }
+      }
+    }
+
     let query = supabase.from('products').select('*', { count: 'exact' })
-    
+
     // Apply filters
     if (filters.search) {
       query = query.or(`name.ilike.%${filters.search}%,sku.ilike.%${filters.search}%,barcode.ilike.%${filters.search}%`)
@@ -201,8 +223,8 @@ export async function getProducts(
       query = query.eq('is_active', filters.isActive)
     }
     
-    if (filters.lowStock) {
-      query = query.lte('stock_quantity', supabase.rpc('min_stock')) // This would need a custom RPC
+    if (lowStockIds) {
+      query = query.in('id', lowStockIds)
     }
     
     // Pagination

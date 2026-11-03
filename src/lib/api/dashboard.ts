@@ -1,32 +1,8 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
-import {
-  startOfLocalDay,
-  sumCompletedBetween,
-  countLowStock,
-  openCashBalance,
-  type SaleRow,
-  type CashMovementRow,
-} from '@/lib/dashboard/metrics'
+import { startOfLocalDay, type SaleRow } from '@/lib/dashboard/metrics'
 
-// Dados reais do dashboard. Escopo por empresa vem do RLS (cada consulta só enxerga a
-// empresa do usuário logado).
-
-const PAGE_SIZE = 1000
-
-// A API devolve no máximo PAGE_SIZE linhas por resposta. Lê todas as páginas para que
-// os totais e contagens cubram o período inteiro, não uma amostra.
-async function fetchAllRows<T>(
-  query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
-): Promise<T[]> {
-  const rows: T[] = []
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await query(from, from + PAGE_SIZE - 1)
-    if (error) throw error
-    const page = data ?? []
-    rows.push(...page)
-    if (page.length < PAGE_SIZE) return rows
-  }
-}
+// Métricas do dashboard calculadas no banco (migration 023, função metricas_dashboard).
+// A função roda como o usuário logado: o RLS e o filtro por empresa valem no servidor.
 
 export interface RecentSale {
   id: string
@@ -44,107 +20,53 @@ export interface DashboardData {
   recentSales: RecentSale[]
 }
 
-type SaleDbRow = {
-  id: string
-  sale_number: number
-  total: number | string
-  status: SaleRow['status']
-  sale_date: string
+interface DashboardRpcResult {
+  vendas_hoje: { total: number | string; count: number | string }
+  vendas_ontem: { total: number | string; count: number | string }
+  estoque_baixo: number | string
+  saldo_caixa: number | string
+  recentes: {
+    id: string
+    sale_number: number
+    total: number | string
+    status: SaleRow['status']
+    sale_date: string
+  }[]
 }
+
+const money = (value: number | string) => Math.round(Number(value) * 100) / 100
 
 export async function fetchDashboardData(now: Date = new Date()): Promise<DashboardData> {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('Painel requer Supabase configurado')
   }
 
-  const todayStart = startOfLocalDay(now)
-  const yesterdayStart = new Date(todayStart)
-  yesterdayStart.setDate(yesterdayStart.getDate() - 1)
-  const tomorrowStart = new Date(todayStart)
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1)
+  const hoje = startOfLocalDay(now)
+  const amanha = new Date(hoje)
+  amanha.setDate(amanha.getDate() + 1)
+  const ontem = new Date(hoje)
+  ontem.setDate(ontem.getDate() - 1)
 
-  try {
-    // Vendas de ontem e hoje, completas (para totais e contagens)
-    const periodSales = await fetchAllRows<SaleDbRow>((from, to) =>
-      supabase!
-        .from('sales')
-        .select('id, sale_number, total, status, sale_date')
-        .gte('sale_date', yesterdayStart.toISOString())
-        .order('sale_date', { ascending: false })
-        .order('id')
-        .range(from, to)
-    )
+  const { data, error } = await supabase.rpc('metricas_dashboard', {
+    p_ontem_inicio: ontem.toISOString(),
+    p_hoje_inicio: hoje.toISOString(),
+    p_amanha_inicio: amanha.toISOString(),
+  })
 
-    // Últimas vendas, sem o corte de data: reflete o histórico real da empresa
-    const { data: latest, error: latestError } = await supabase
-      .from('sales')
-      .select('id, sale_number, total, status, sale_date')
-      .order('sale_date', { ascending: false })
-      .order('id')
-      .limit(5)
-    if (latestError) throw latestError
+  if (error || !data) throw new Error('Erro ao carregar o painel')
 
-    const products = await fetchAllRows<{ stock_quantity: number; min_stock: number }>((from, to) =>
-      supabase!
-        .from('products')
-        .select('id, stock_quantity, min_stock')
-        .eq('is_active', true)
-        .order('id')
-        .range(from, to)
-    )
-
-    const registers = await fetchAllRows<{ id: string; initial_amount: number | string }>((from, to) =>
-      supabase!
-        .from('cash_registers')
-        .select('id, initial_amount')
-        .eq('status', 'open')
-        .order('id')
-        .range(from, to)
-    )
-
-    let movements: CashMovementRow[] = []
-    if (registers.length > 0) {
-      const rows = await fetchAllRows<{ cash_register_id: string; type: CashMovementRow['type']; amount: number | string }>(
-        (from, to) =>
-          supabase!
-            .from('cash_movements')
-            .select('cash_register_id, type, amount')
-            .in('cash_register_id', registers.map((r) => r.id))
-            .order('id')
-            .range(from, to)
-      )
-      movements = rows.map((m) => ({
-        cashRegisterId: m.cash_register_id,
-        type: m.type,
-        amount: Number(m.amount),
-      }))
-    }
-
-    const saleRows: SaleRow[] = periodSales.map((s) => ({
-      total: Number(s.total),
-      status: s.status,
+  const result = data as DashboardRpcResult
+  return {
+    salesToday: { total: money(result.vendas_hoje.total), count: Number(result.vendas_hoje.count) },
+    salesYesterday: { total: money(result.vendas_ontem.total), count: Number(result.vendas_ontem.count) },
+    lowStockCount: Number(result.estoque_baixo),
+    cashBalance: money(result.saldo_caixa),
+    recentSales: result.recentes.map((s) => ({
+      id: s.id,
+      saleNumber: s.sale_number,
+      total: money(s.total),
       saleDate: s.sale_date,
-    }))
-
-    return {
-      salesToday: sumCompletedBetween(saleRows, todayStart, tomorrowStart),
-      salesYesterday: sumCompletedBetween(saleRows, yesterdayStart, todayStart),
-      lowStockCount: countLowStock(
-        products.map((p) => ({ stockQuantity: p.stock_quantity, minStock: p.min_stock }))
-      ),
-      cashBalance: openCashBalance(
-        registers.map((r) => ({ id: r.id, initialAmount: Number(r.initial_amount) })),
-        movements
-      ),
-      recentSales: (latest ?? []).map((s: SaleDbRow) => ({
-        id: s.id,
-        saleNumber: s.sale_number,
-        total: Number(s.total),
-        saleDate: s.sale_date,
-        status: s.status,
-      })),
-    }
-  } catch {
-    throw new Error('Erro ao carregar o painel')
+      status: s.status,
+    })),
   }
 }
