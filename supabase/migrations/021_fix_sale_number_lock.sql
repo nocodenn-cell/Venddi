@@ -4,7 +4,8 @@
 -- e o Postgres recusa FOR UPDATE com função de agregação ("FOR UPDATE is not allowed
 -- with aggregate functions"). Resultado: toda venda falhava com essa mensagem.
 --
--- Correção: trava a linha da empresa (FOR UPDATE sem agregado) para serializar a
+-- Correção 2: cash_movements.user_id é NOT NULL e a venda só preenchia operator_id.
+-- Correção 1: trava a linha da empresa (FOR UPDATE sem agregado) para serializar a
 -- numeração de vendas da mesma empresa, e calcula o MAX sem lock.
 -- O restante da função é idêntico à migration 008 (copiado sem outras alterações).
 CREATE OR REPLACE FUNCTION create_atomic_sale(
@@ -281,6 +282,7 @@ BEGIN
       cash_register_id,
       company_id,
       operator_id,
+      user_id,
       type,
       amount,
       description,
@@ -292,6 +294,7 @@ BEGIN
     SELECT
       p_cash_register_id,
       p_company_id,
+      p_operator_id,
       p_operator_id,
       'sale',
       v_cash_amount,
