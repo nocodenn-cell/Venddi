@@ -14,7 +14,7 @@ Data: 3 de novembro de 2026. Base: `homologacao/rc-integrado` (PRs #17, #18 e #1
 
 | # | Bloqueio | Por que bloqueia | O que falta |
 |---|---|---|---|
-| B1 | Caixa grava direto nas tabelas (abrir, sangria, suprimento, fechar) | Integridade financeira depende de a tela estar certa; não há RPC nem trilha de auditoria. Em `cashRegister.ts`, `total_withdrawals` recebe uma promessa de `rpc()` dentro de `update()`, o que não grava o valor | RPCs de abertura, sangria, suprimento e fechamento com trilha; reescrever a tela para usá-las; testes |
+| B1 | Caixa grava direto nas tabelas (abrir, sangria, suprimento, fechar) | Integridade financeira depende de a tela estar certa; não há RPC nem trilha de auditoria. Em `cashRegister.ts`, `total_withdrawals` recebe uma promessa de `rpc()` dentro de `update()`, o que não grava o valor | **Resolvido na branch `feat/caixa-transacional` (migration 029):** RPCs com idempotência, log imutável, trava de status e de caixa fechado, tela reescrita; matriz em `docs/CAIXA_TRANSACIONAL.md`. Pendente: aplicar no remoto de homologação e rodar o roteiro (seção 5) |
 | B2 | Fluxo de venda pela tela do PDV não validado (U14–U17) | É o fluxo de receita do cliente | Roteiro manual, seção 3, etapas 1–4 |
 | B3 | Fechamento de caixa pela tela não validado (U19) | Conciliação do dia | Roteiro manual, etapa 10, e conferência de valores |
 | B4 | Homologação remota não executada | Não há projeto de homologação identificado nas contas acessíveis (o projeto indicado como Venddi é o de produção, e não foi tocado) | Informar o projeto de homologação; aplicar o procedimento |

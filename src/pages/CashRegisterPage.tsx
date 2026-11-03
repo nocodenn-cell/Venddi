@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Modal } from '@/components/ui'
 import { Badge } from '@/components/ui'
 import { useAuthStore } from '@/lib/store/auth'
@@ -11,6 +11,7 @@ import {
   getCashMovements,
 } from '@/lib/api/cashRegister'
 import type { CashRegister, CashMovement } from '@/lib/schemas/sales'
+import { v4 as uuidv4 } from 'uuid'
 import {
   DollarSign,
   TrendingUp,
@@ -28,6 +29,8 @@ export function CashRegisterPage() {
   const [movements, setMovements] = useState<CashMovement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   // Modals
   const [showOpenModal, setShowOpenModal] = useState(false)
@@ -38,10 +41,27 @@ export function CashRegisterPage() {
   // Form states
   const [initialAmount, setInitialAmount] = useState('')
   const [finalAmount, setFinalAmount] = useState('')
+  const [closingNotes, setClosingNotes] = useState('')
   const [withdrawalAmount, setWithdrawalAmount] = useState('')
   const [withdrawalDescription, setWithdrawalDescription] = useState('')
   const [depositAmount, setDepositAmount] = useState('')
   const [depositDescription, setDepositDescription] = useState('')
+
+  // Chave de idempotência por operação. Nova tentativa com os mesmos dados reaproveita a chave
+  // (o servidor devolve o resultado original); mudou o dado, gera outra. Limpa ao concluir.
+  const operationKeys = useRef<Record<string, { signature: string; key: string }>>({})
+
+  const keyFor = (operation: string, signature: string): string => {
+    const current = operationKeys.current[operation]
+    if (current && current.signature === signature) return current.key
+    const key = uuidv4()
+    operationKeys.current[operation] = { signature, key }
+    return key
+  }
+
+  const clearKey = (operation: string) => {
+    delete operationKeys.current[operation]
+  }
 
   useEffect(() => {
     loadCashRegister()
@@ -58,6 +78,8 @@ export function CashRegisterPage() {
       if (openRegister) {
         const movs = await getCashMovements(openRegister.id)
         setMovements(movs)
+      } else {
+        setMovements([])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar caixa')
@@ -67,7 +89,7 @@ export function CashRegisterPage() {
   }
 
   const handleOpenCashRegister = async () => {
-    if (!user) return
+    if (!user || submitting) return
 
     try {
       const amount = parseFloat(initialAmount)
@@ -75,22 +97,28 @@ export function CashRegisterPage() {
         throw new Error('Valor inicial inválido')
       }
 
+      setSubmitting(true)
+      setError(null)
       await openCashRegister({
         operatorId: user.id,
         operatorName: user.fullName,
         initialAmount: amount,
+        idempotencyKey: keyFor('open', String(amount)),
       })
+      clearKey('open')
 
       setShowOpenModal(false)
       setInitialAmount('')
       await loadCashRegister()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao abrir caixa')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleCloseCashRegister = async () => {
-    if (!cashRegister) return
+    if (!cashRegister || submitting) return
 
     try {
       const amount = parseFloat(finalAmount)
@@ -98,21 +126,34 @@ export function CashRegisterPage() {
         throw new Error('Valor final inválido')
       }
 
-      await closeCashRegister({
+      setSubmitting(true)
+      setError(null)
+      const result = await closeCashRegister({
         cashRegisterId: cashRegister.id,
         finalAmount: amount,
+        notes: closingNotes.trim() || undefined,
+        idempotencyKey: keyFor('close', `${cashRegister.id}|${amount}|${closingNotes.trim()}`),
       })
+      clearKey('close')
 
+      setNotice(
+        result.difference === 0
+          ? 'Caixa fechado sem divergência.'
+          : `Caixa fechado com diferença de R$ ${result.difference.toFixed(2)} (observação registrada).`
+      )
       setShowCloseModal(false)
       setFinalAmount('')
+      setClosingNotes('')
       await loadCashRegister()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao fechar caixa')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleWithdrawal = async () => {
-    if (!cashRegister) return
+    if (!cashRegister || submitting) return
 
     try {
       const amount = parseFloat(withdrawalAmount)
@@ -124,12 +165,15 @@ export function CashRegisterPage() {
         throw new Error('Descrição obrigatória')
       }
 
+      setSubmitting(true)
+      setError(null)
       await registerWithdrawal({
         cashRegisterId: cashRegister.id,
-        operatorId: user!.id,
         amount,
         description: withdrawalDescription,
+        idempotencyKey: keyFor('withdrawal', `${amount}|${withdrawalDescription}`),
       })
+      clearKey('withdrawal')
 
       setShowWithdrawalModal(false)
       setWithdrawalAmount('')
@@ -137,11 +181,13 @@ export function CashRegisterPage() {
       await loadCashRegister()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao registrar sangria')
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleDeposit = async () => {
-    if (!cashRegister) return
+    if (!cashRegister || submitting) return
 
     try {
       const amount = parseFloat(depositAmount)
@@ -153,12 +199,15 @@ export function CashRegisterPage() {
         throw new Error('Descrição obrigatória')
       }
 
+      setSubmitting(true)
+      setError(null)
       await registerDeposit({
         cashRegisterId: cashRegister.id,
-        operatorId: user!.id,
         amount,
         description: depositDescription,
+        idempotencyKey: keyFor('deposit', `${amount}|${depositDescription}`),
       })
+      clearKey('deposit')
 
       setShowDepositModal(false)
       setDepositAmount('')
@@ -166,6 +215,8 @@ export function CashRegisterPage() {
       await loadCashRegister()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao registrar suprimento')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -215,6 +266,16 @@ export function CashRegisterPage() {
         </div>
       )}
 
+      {/* Notice */}
+      {notice && (
+        <div className="p-4 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
+          {notice}
+          <button onClick={() => setNotice(null)} className="ml-2 font-bold">
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Cash Register Status */}
       {cashRegister ? (
         <>
@@ -234,7 +295,7 @@ export function CashRegisterPage() {
                 <div>
                   <p className="text-sm text-gray-600">Operador</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {cashRegister.operatorName}
+                    {cashRegister.operatorName || user?.fullName}
                   </p>
                 </div>
                 <div>
@@ -441,10 +502,12 @@ export function CashRegisterPage() {
             onChange={(e) => setInitialAmount(e.target.value)}
           />
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowOpenModal(false)}>
+            <Button variant="outline" onClick={() => setShowOpenModal(false)} disabled={submitting}>
               Cancelar
             </Button>
-            <Button onClick={handleOpenCashRegister}>Abrir Caixa</Button>
+            <Button onClick={handleOpenCashRegister} disabled={submitting}>
+              Abrir Caixa
+            </Button>
           </div>
         </div>
       </Modal>
@@ -470,11 +533,17 @@ export function CashRegisterPage() {
             value={finalAmount}
             onChange={(e) => setFinalAmount(e.target.value)}
           />
+          <Input
+            label="Observação (obrigatória se houver diferença)"
+            placeholder="Ex.: diferença conferida com o operador"
+            value={closingNotes}
+            onChange={(e) => setClosingNotes(e.target.value)}
+          />
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowCloseModal(false)}>
+            <Button variant="outline" onClick={() => setShowCloseModal(false)} disabled={submitting}>
               Cancelar
             </Button>
-            <Button variant="danger" onClick={handleCloseCashRegister}>
+            <Button variant="danger" onClick={handleCloseCashRegister} disabled={submitting}>
               Fechar Caixa
             </Button>
           </div>
@@ -504,10 +573,12 @@ export function CashRegisterPage() {
             onChange={(e) => setWithdrawalDescription(e.target.value)}
           />
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowWithdrawalModal(false)}>
+            <Button variant="outline" onClick={() => setShowWithdrawalModal(false)} disabled={submitting}>
               Cancelar
             </Button>
-            <Button onClick={handleWithdrawal}>Registrar Sangria</Button>
+            <Button onClick={handleWithdrawal} disabled={submitting}>
+              Registrar Sangria
+            </Button>
           </div>
         </div>
       </Modal>
@@ -535,10 +606,12 @@ export function CashRegisterPage() {
             onChange={(e) => setDepositDescription(e.target.value)}
           />
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowDepositModal(false)}>
+            <Button variant="outline" onClick={() => setShowDepositModal(false)} disabled={submitting}>
               Cancelar
             </Button>
-            <Button onClick={handleDeposit}>Registrar Suprimento</Button>
+            <Button onClick={handleDeposit} disabled={submitting}>
+              Registrar Suprimento
+            </Button>
           </div>
         </div>
       </Modal>

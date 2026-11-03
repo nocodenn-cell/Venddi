@@ -1,8 +1,8 @@
 #!/bin/bash
-# Sobe Postgres 16 local (Docker), aplica migrations 001..019 com stub do schema auth
-# do Supabase e executa todos os testes SQL + concorrência. Não toca em produção.
+# Sobe Postgres 16 local (Docker), aplica todas as migrations (0*.sql em ordem) com stub do schema
+# auth do Supabase e executa todos os testes SQL + concorrência. Não toca em produção.
 # Uso: bash supabase/tests/run_local_db_tests.sh   (requer Docker)
-# Recria o Postgres local e aplica migrations 001..019 em ordem, parando no primeiro erro.
+# Recria o Postgres local e aplica as migrations em ordem, parando no primeiro erro.
 set -e
 cd "$(dirname "$0")/../.."
 docker rm -f venddi-pg >/dev/null 2>&1 || true
@@ -27,8 +27,13 @@ done
 echo "MIGRATIONS OK"
 for f in supabase/tests/*.sql; do
 
-  out=$(docker exec -i venddi-pg psql -U postgres -v ON_ERROR_STOP=1 < "$f" 2>&1)
-  if echo "$out" | grep -q ERROR; then echo "FAIL $f: $(echo "$out" | grep ERROR | head -1)"; exit 1; fi
+  rc=0
+  out=$(docker exec -i venddi-pg psql -U postgres -v ON_ERROR_STOP=1 < "$f" 2>&1) || rc=$?
+  if [ "$rc" -ne 0 ] || echo "$out" | grep -q ERROR; then
+    echo "FAIL $f (rc=$rc): $(echo "$out" | grep -m1 ERROR)"
+    exit 1
+  fi
   echo "ok   $f"
 done
 bash "$(dirname "$0")/inventory_concurrency_check.sh"
+bash "$(dirname "$0")/concorrencia_caixa.sh" 15
