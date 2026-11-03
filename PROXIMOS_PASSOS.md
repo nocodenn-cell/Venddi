@@ -2,12 +2,15 @@
 
 ## P0 — Quebrado/travado
 
-- Migrations 026–029 ainda não estão no projeto remoto de homologação. Aplicar só com backup e pelo roteiro de `docs/PROCEDIMENTO_MIGRATIONS_HOMOLOGACAO.md`.
+- Migrations 026–030 ainda não estão no projeto remoto de homologação. Aplicar só com backup e pelo roteiro de `docs/PROCEDIMENTO_MIGRATIONS_HOMOLOGACAO.md`.
 
 ## P1 — Falta para lançar (MVP)
 
 - Executar o roteiro de caixa (`docs/CAIXA_TRANSACIONAL.md`, seção 5) no projeto remoto de homologação.
 - Teste de interface para duplo clique em sangria e para dois caixas simultâneos (CX-29, CX-30).
+- Tela de cancelamento de venda: a RPC existe e foi testada pela API, mas a tela de Vendas está em desenvolvimento (PDV-09).
+- Produtos fracionados: quantidade é inteira no banco e na tela (PDV-04). Decidir se entra no escopo do MVP.
+- Gravar valor recebido e troco em `payments`, se o troco precisar de auditoria (ver `docs/CAIXA_TRANSACIONAL.md`, seção 8).
 - Homologar a migration 019 (inventário físico) e executar o roteiro de `docs/INVENTARIO_FISICO.md`, seção 5.
 - E2E automatizado de navegador (Playwright) para inventário e caixa.
 - Paginação e busca no servidor para inventários com catálogo grande.
@@ -20,6 +23,8 @@
 
 ## Feito
 
+- 2026-11-03 — Validação operacional do PDV e do caixa: desconto, pagamento dividido, troco e chave de venda corrigidos; estorno com sinal negativo; detalhamento por meio de pagamento; jornada completa pela interface conferida no banco (migration 030 e testes de integridade)
+- 2026-11-03 — Segurança: políticas de escrita direta em vendas, pagamentos, itens, auditoria e caixa removidas (migration 030)
 - 2026-11-03 — PDV: grade de produtos carrega produtos reais do banco (antes era lista fixa com ids inválidos); venda pela grade verificada no banco (CX-31)
 - 2026-11-03 — Caixa transacional: RPCs de abertura, sangria, suprimento e fechamento com idempotência, log imutável, trava de status e de caixa fechado (migration 029); testes SQL, concorrência e E2E
 - 2026-11-03 — Venda e estorno travam o caixa antes dos produtos (ordem de travas, migrations 028 e 029)

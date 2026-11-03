@@ -287,6 +287,33 @@ export async function getCashRegister(cashRegisterId: string): Promise<CashRegis
   }
 }
 
+export interface PaymentMethodTotal {
+  method: string
+  total: number
+}
+
+/**
+ * Totais das vendas do caixa por meio de pagamento (vendas canceladas não entram).
+ * Só o dinheiro entra no saldo do caixa; os demais meios são conferidos separadamente.
+ */
+export async function getSalePaymentTotals(cashRegisterId: string): Promise<PaymentMethodTotal[]> {
+  if (!isSupabaseConfigured || !supabase) return []
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('method, amount, sales!inner(cash_register_id, status)')
+    .eq('sales.cash_register_id', cashRegisterId)
+    .neq('sales.status', 'cancelled')
+
+  if (error) throw operationError(error, 'Erro ao carregar meios de pagamento')
+
+  const totals = new Map<string, number>()
+  for (const row of data ?? []) {
+    totals.set(row.method, (totals.get(row.method) ?? 0) + Number(row.amount))
+  }
+  return [...totals].map(([method, total]) => ({ method, total: Math.round(total * 100) / 100 }))
+}
+
 /**
  * Get cash movements for a cash register
  */

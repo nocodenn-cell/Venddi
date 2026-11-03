@@ -114,9 +114,74 @@ Legenda: PASSOU = executado e verde; FALHOU = executado e vermelho; NÃO TESTADO
 | CX-32 | Aplicação das migrations 026–029 no ambiente remoto de homologação | Não executado (só a stack local) | NÃO TESTADO |
 | CX-33 | Rollback da 029 (`supabase/rollback/029_rollback.sql`), reaplicação da 028 e regressão de venda | Ensaio no Postgres local: rollback sem erro, 0 objetos da 029 restantes, 028 reaplicada, `sale_rpc_regression_check`, `isolamento_permissoes_vendas` e `e2e_fluxo_integrado` passam | PASSOU (ensaio local; não executado em homologação remota) |
 
+## 7.1 Validação operacional (PDV, caixa, integridade e segurança)
+
+Ambiente: stack Supabase local isolada (migrations 001 a 030), app em `localhost` e base de teste do runner. Nada foi aplicado em remoto ou produção.
+
+**Etapa 1 — PDV**
+
+| ID | Cenário | Resultado | Evidência / observação |
+|---|---|---|---|
+| PDV-01 | Busca por nome e SKU | PASSOU | Busca rápida e grade |
+| PDV-02 | Código de barras | PASSOU | `7891234500002` localizou "Chá E2E" |
+| PDV-03 | Alteração de quantidade | PASSOU (+) / lido (−) | "+" levou 1 para 2 e o total foi recalculado. O "−" usa a mesma função, lida no código e não executada |
+| PDV-04 | Produtos fracionados | NÃO SUPORTADO | `sale_items.quantity` e `products.stock_quantity` são inteiros, e a tela só soma ou subtrai 1 |
+| PDV-05 | Preços e descontos (5% em dinheiro) | PASSOU após correção | Antes: botão Confirmar desabilitado e "Faltam R$ 0,78" com pagamento completo (FALHOU). Depois: venda 3 gravou R$ 14,72 |
+| PDV-06 | Múltiplos itens | PASSOU | Venda 5: Chá x2 + Pão = R$ 15,50 |
+| PDV-07 | Pagamento dividido | PASSOU após correção | Antes: impossível, cada forma lançava o restante inteiro. Depois: venda 4 com dinheiro R$ 4,00 + PIX R$ 6,00; caixa recebeu só R$ 4,00 |
+| PDV-08 | Troco | PASSOU após correção | Antes: não havia valor recebido (FALHOU). Depois: troco de R$ 5,28, R$ 1,00 e R$ 0,50. O valor recebido não é gravado (ver seção 8) |
+| PDV-09 | Cancelamento | PASSOU pela API / NÃO EXISTE na interface | `cancel_sale_with_reversal` pela API: venda 4 cancelada, estorno de R$ 4,00 no caixa, total volta. A tela de Vendas está "em desenvolvimento" e nenhuma tela chama `cancelSale` |
+| PDV-10 | Duplo envio da mesma venda | PASSOU | Chave por tentativa (antes, uma chave nova por clique). Testes de integridade 2 e cenário F da concorrência |
+
+**Etapa 2 — Caixa (jornada completa pela interface)**
+
+| ID | Passo | Resultado | Conferido no banco |
+|---|---|---|---|
+| CX-J1 | Abrir com R$ 100,00 | PASSOU | `initial_amount = 100` |
+| CX-J2 | Suprimento de R$ 15,00 | PASSOU | `total_deposits = 15` |
+| CX-J3 | Sangria de R$ 10,00 | PASSOU | `total_withdrawals = 10` |
+| CX-J4 | Vendas em quatro meios: dinheiro R$ 15,50 (troco R$ 0,50), crédito R$ 10,00, débito R$ 6,00, PIX R$ 3,50 | PASSOU | Cada venda com o meio certo. A tela mostra o detalhamento e "Vendas em dinheiro" = R$ 15,50 |
+| CX-J5 | Saldo esperado | PASSOU | R$ 120,50 = 100 + 15,50 + 15 − 10, igual ao banco |
+| CX-J6 | Fechar contando R$ 120,00 sem observação | PASSOU (recusado) | Mensagem: "Fechamento com divergência de R$ -0.50 exige observação" |
+| CX-J7 | Fechar com observação | PASSOU | `status = closed`, `final_amount = 120`, `closing_difference = -0.50` |
+| CX-J8 | Bloqueio após fechamento | PASSOU | Sangria e venda em caixa fechado recusadas pela API. A tela mostra "Caixa Fechado" |
+| CX-J9 | Reabrir caixa após fechar | PASSOU | Mesmo operador abre outro caixa |
+| CX-J10 | Auditoria | PASSOU | `cash_operation_log`: abertura, suprimento, sangria e fechamento. `audit_logs`: 8 `sale.create` para 8 vendas, 1 `sale.cancel` |
+
+**Etapa 3 — Integridade**
+
+- Interface × banco: cada operação da jornada foi conferida no banco (valores acima).
+- Duplicidade: venda com a mesma chave repetida não duplica (integridade 2). Duas tentativas simultâneas geram uma venda, um movimento e um total (concorrência F, 5 rodadas).
+- Concorrência: abertura dupla, chave repetida, venda, sangria e estorno contra fechamento, com invariante, e duplo envio de venda com a mesma chave (cenário F). Execução limpa com 15 rodadas por cenário: 0 violações, 0 falhas. Execuções sobrepostas no mesmo banco geram falsos negativos; rodar uma de cada vez.
+- Multiempresa: dono de outra empresa não cancela venda nem opera caixa (integridade 8, caixa 20 e 21).
+- Falhas parciais: venda sem estoque, pagamento incompleto e sangria acima do saldo não deixam venda, pagamento, movimento nem estoque alterados (integridade 4 e 5, caixa 7).
+
+**Etapa 4 — Segurança**
+
+- Gravações diretas de caixa identificadas: `cashRegister.ts` (abrir, fechar, sangria e suprimento por `insert` e `update`) e, no banco, as políticas de INSERT e UPDATE em `cash_registers` e `cash_movements` (migration 027). Hoje a API só lê essas tabelas.
+- Gravações diretas de venda: as políticas genéricas de INSERT, UPDATE e DELETE em `sales`, `payments`, `sale_items` e `audit_logs` (migration 005) permitiam qualquer usuário da empresa alterar venda e apagar auditoria pela API. A migration 030 removeu essas políticas (P0 corrigido).
+- Operações financeiras: todas pelas RPCs `SECURITY DEFINER` com permissões verificadas dentro da função. A RLS fica só com leitura, exceto a gerência, que mantém UPDATE de valor inicial, e o trigger recusa status, fechamento e totais.
+- Empresa bloqueada: as RPCs de caixa exigem `get_user_company_id()` igual à empresa do operador (corrigido após revisão do Codex).
+
+**Problemas encontrados e corrigidos nesta etapa**
+
+1. Venda com desconto nunca podia ser confirmada (botão comparava com o total sem desconto).
+2. "Faltam" e "Troco" usavam o total sem desconto.
+3. Forma de pagamento lançava sempre o restante; sem pagamento dividido nem troco.
+4. Chave de idempotência da venda era nova a cada clique.
+5. Estorno aparecia como entrada na lista de movimentos do caixa.
+6. Painel do caixa mostrava "Vendas" sem separar os meios de pagamento; agora mostra o detalhamento e chama o total de "Vendas em dinheiro".
+7. Políticas de escrita direta em vendas, pagamentos, itens e auditoria (P0).
+8. Políticas de INSERT e UPDATE direto no caixa (migration 027) substituídas por RPCs (migration 030).
+9. Script de concorrência reusava chaves entre execuções, o que dava falso negativo.
+
 ## 8. Limites e pendências
 
 - Vendas não entram em `cash_operation_log`. A auditoria de venda continua em `sales` e nos movimentos `sale` de `cash_movements`.
 - O rollback de 029 remove o log e as colunas de fechamento. Fazer backup antes.
 - Um operador tem um caixa aberto por vez. Caixa compartilhado não é suportado.
 - A conciliação com cartão e PIX não faz parte desta entrega.
+- Produtos fracionados não são suportados: quantidade é inteira no banco e na tela (PDV-04).
+- Não há tela de cancelamento de venda. A RPC existe e foi testada pela API (PDV-09). A tela de Vendas está em desenvolvimento.
+- O valor recebido e o troco são calculados na tela e não são gravados. O caixa registra só o valor da venda em dinheiro, que é o que afeta o saldo. Se o troco precisar de auditoria, a tabela `payments` precisa de colunas próprias.
+- A migration 030 ainda não foi aplicada no remoto de homologação. A stack local está com 001 a 030. Na stack local, a 029 foi reaplicada manualmente após a correção de empresa ativa, porque `migration up` não reexecuta migrations já registradas.

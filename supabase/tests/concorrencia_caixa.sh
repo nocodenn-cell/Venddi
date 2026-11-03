@@ -47,18 +47,20 @@ invariante() {
   THEN 'OK' ELSE 'VIOLACAO' END;"
 }
 abre() { # $1 = chave, $2 = valor inicial
-  run "$CX_AUTH" "SELECT abrir_caixa('$CO', $2, '$1');" "$T/abre_$1.out"
+  run "$CX_AUTH" "SELECT abrir_caixa('$CO', $2, '$RUNID-$1');" "$T/abre_$1.out"
   sqlq "SELECT id FROM cash_registers WHERE company_id='$CO' AND status='open' AND user_id='$CX';"
 }
 VIOL=0; FALHAS=0
+# Identificador da execução: as chaves de idempotência são únicas por empresa, então cada execução usa as suas.
+RUNID=$(sqlq "SELECT replace(gen_random_uuid()::text,'-','');")
 ITEM="[{\"productId\":\"$P1\",\"quantity\":1,\"unitPrice\":5,\"discount\":0}]"
 PAG='[{"method":"cash","amount":5}]'
 
 for i in $(seq 1 "$N"); do
   # A. Abertura dupla, chaves diferentes
   limpa
-  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, 'A-$i-1');" "$T/a1.out" & P1P=$!
-  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, 'A-$i-2');" "$T/a2.out" & P2P=$!
+  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, '$RUNID-A-$i-1');" "$T/a1.out" & P1P=$!
+  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, '$RUNID-A-$i-2');" "$T/a2.out" & P2P=$!
   wait $P1P; wait $P2P
   ok=$(grep -l '"success": true' "$T"/a1.out "$T"/a2.out 2>/dev/null | wc -l)
   err=$(grep -l 'Já existe caixa aberto' "$T"/a1.out "$T"/a2.out 2>/dev/null | wc -l)
@@ -67,8 +69,8 @@ for i in $(seq 1 "$N"); do
 
   # B. Mesma chave em paralelo: um cria, o outro recebe replay
   limpa
-  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, 'B-$i');" "$T/b1.out" & P1P=$!
-  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, 'B-$i');" "$T/b2.out" & P2P=$!
+  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, '$RUNID-B-$i');" "$T/b1.out" & P1P=$!
+  run "$CX_AUTH" "SELECT abrir_caixa('$CO', 10, '$RUNID-B-$i');" "$T/b2.out" & P2P=$!
   wait $P1P; wait $P2P
   ok=$(grep -l '"success": true' "$T"/b1.out "$T"/b2.out 2>/dev/null | wc -l)
   replay=$(grep -h '"replay": true' "$T"/b1.out "$T"/b2.out 2>/dev/null | wc -l)
@@ -79,7 +81,7 @@ for i in $(seq 1 "$N"); do
   limpa
   R=$(abre "C-$i-open" 0)
   run "$CX_AUTH" "SELECT create_atomic_sale('$CO', '$CX', '$R', '$ITEM'::jsonb, '$PAG'::jsonb);" "$T/c1.out" & P1P=$!
-  run "$CX_AUTH" "SELECT fechar_caixa('$R', 5, 'C-$i-close', 'fechamento de teste');" "$T/c2.out" & P2P=$!
+  run "$CX_AUTH" "SELECT fechar_caixa('$R', 5, '$RUNID-C-$i-close', 'fechamento de teste');" "$T/c2.out" & P2P=$!
   wait $P1P; wait $P2P
   if ! grep -q '"success": true' "$T/c2.out"; then FALHAS=$((FALHAS+1)); echo "rodada $i C: fechamento falhou: $(grep -m1 ERROR "$T/c2.out")"; fi
   inv=$(invariante "$R")
@@ -88,8 +90,8 @@ for i in $(seq 1 "$N"); do
   # D. Sangria x fechamento
   limpa
   R=$(abre "D-$i-open" 20)
-  run "$CX_AUTH" "SELECT registrar_movimento_caixa('$R', 'withdrawal', 5, 'Sangria concorrente', 'D-$i-w');" "$T/d1.out" & P1P=$!
-  run "$CX_AUTH" "SELECT fechar_caixa('$R', 15, 'D-$i-close', 'fechamento de teste');" "$T/d2.out" & P2P=$!
+  run "$CX_AUTH" "SELECT registrar_movimento_caixa('$R', 'withdrawal', 5, 'Sangria concorrente', '$RUNID-D-$i-w');" "$T/d1.out" & P1P=$!
+  run "$CX_AUTH" "SELECT fechar_caixa('$R', 15, '$RUNID-D-$i-close', 'fechamento de teste');" "$T/d2.out" & P2P=$!
   wait $P1P; wait $P2P
   if ! grep -q '"success": true' "$T/d2.out"; then FALHAS=$((FALHAS+1)); echo "rodada $i D: fechamento falhou: $(grep -m1 ERROR "$T/d2.out")"; fi
   inv=$(invariante "$R")
@@ -101,11 +103,24 @@ for i in $(seq 1 "$N"); do
   run "$CX_AUTH" "SELECT create_atomic_sale('$CO', '$CX', '$R', '$ITEM'::jsonb, '$PAG'::jsonb);" "$T/e0.out"
   S=$(sqlq "SELECT id FROM sales WHERE company_id='$CO' AND cash_register_id='$R' AND status<>'cancelled' LIMIT 1;")
   run "$OWN_AUTH" "SELECT cancel_sale_with_reversal('$S', '$CO', '$OWN', 'teste concorrente');" "$T/e1.out" & P1P=$!
-  run "$CX_AUTH" "SELECT fechar_caixa('$R', 5, 'E-$i-close', 'fechamento de teste');" "$T/e2.out" & P2P=$!
+  run "$CX_AUTH" "SELECT fechar_caixa('$R', 5, '$RUNID-E-$i-close', 'fechamento de teste');" "$T/e2.out" & P2P=$!
   wait $P1P; wait $P2P
   if ! grep -q '"success": true' "$T/e2.out"; then FALHAS=$((FALHAS+1)); echo "rodada $i E: fechamento falhou: $(grep -m1 ERROR "$T/e2.out")"; fi
   inv=$(invariante "$R")
   if [ "$inv" != "OK" ]; then VIOL=$((VIOL+1)); echo "rodada $i E: invariante $inv"; fi
+
+  # F. Mesma chave de venda em paralelo (duplo envio): uma venda só, um movimento, um total
+  limpa
+  R=$(abre "F-$i-open" 0)
+  KEY=$(sqlq "SELECT gen_random_uuid();")
+  SQLV="SELECT create_atomic_sale(p_company_id => '$CO', p_operator_id => '$CX', p_cash_register_id => '$R', p_items => '$ITEM'::jsonb, p_payments => '$PAG'::jsonb, p_idempotency_key => '$KEY'::uuid);"
+  run "$CX_AUTH" "$SQLV" "$T/f1.out" & P1P=$!
+  run "$CX_AUTH" "$SQLV" "$T/f2.out" & P2P=$!
+  wait $P1P; wait $P2P
+  vendas=$(sqlq "SELECT COUNT(*) FROM sales WHERE cash_register_id='$R';")
+  movs=$(sqlq "SELECT COUNT(*) FROM cash_movements WHERE cash_register_id='$R' AND type='sale';")
+  total=$(sqlq "SELECT total_sales FROM cash_registers WHERE id='$R';")
+  if [ "$vendas" -ne 1 ] || [ "$movs" -ne 1 ] || [ "$total" != "5.00" ]; then VIOL=$((VIOL+1)); echo "rodada $i F: vendas=$vendas movimentos=$movs total=$total"; fi
 done
 
 limpa

@@ -261,16 +261,19 @@ BEGIN
   RESET ROLE;
 
   -- 18. Escrita direta pela API é recusada (status, totais, valor final)
+  -- Sem política de UPDATE para o caixa: a API não altera status nem totais (0 linhas)
   PERFORM pg_temp.as_auth(CAIXA2);
-  PERFORM pg_temp.expect_fail('18 cashier reabre pelo UPDATE',
-    format($q$UPDATE cash_registers SET status = 'open' WHERE id = '%s'$q$, v_cr),
-    'só pelas operações do sistema');
+  UPDATE cash_registers SET status = 'open' WHERE id = v_cr;
+  GET DIAGNOSTICS n = ROW_COUNT;
   RESET ROLE;
+  IF n <> 0 THEN RAISE EXCEPTION 'FALHOU 18: cashier reabriu caixa pelo UPDATE (% linhas)', n; END IF;
   PERFORM pg_temp.as_auth(CAIXA2);
-  PERFORM pg_temp.expect_fail('18 cashier altera total pelo UPDATE',
-    format($q$UPDATE cash_registers SET total_withdrawals = 0 WHERE id = '%s'$q$, v_cr),
-    'só pelas operações do sistema');
+  UPDATE cash_registers SET total_withdrawals = 0 WHERE id = v_cr;
+  GET DIAGNOSTICS n = ROW_COUNT;
   RESET ROLE;
+  IF n <> 0 THEN RAISE EXCEPTION 'FALHOU 18: cashier alterou total pelo UPDATE (% linhas)', n; END IF;
+  SELECT status INTO v_status FROM cash_registers WHERE id = v_cr;
+  IF v_status <> 'closed' THEN RAISE EXCEPTION 'FALHOU 18: status mudou (%)', v_status; END IF;
 
   -- 19. Log de operações: uma linha por operação aceita; sem alteração nem exclusão
   SELECT COUNT(*) INTO n FROM cash_operation_log WHERE cash_register_id = v_cr;

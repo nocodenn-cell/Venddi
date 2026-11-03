@@ -9,6 +9,7 @@ import {
   registerDeposit,
   getOpenCashRegister,
   getCashMovements,
+  getSalePaymentTotals,
 } from '@/lib/api/cashRegister'
 import type { CashRegister, CashMovement } from '@/lib/schemas/sales'
 import { v4 as uuidv4 } from 'uuid'
@@ -23,10 +24,18 @@ import {
   History,
 } from 'lucide-react'
 
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: 'Dinheiro',
+  credit_card: 'Cartão de crédito',
+  debit_card: 'Cartão de débito',
+  pix: 'PIX',
+}
+
 export function CashRegisterPage() {
   const { user } = useAuthStore()
   const [cashRegister, setCashRegister] = useState<CashRegister | null>(null)
   const [movements, setMovements] = useState<CashMovement[]>([])
+  const [paymentTotals, setPaymentTotals] = useState<Array<{ method: string; total: number }>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -78,8 +87,10 @@ export function CashRegisterPage() {
       if (openRegister) {
         const movs = await getCashMovements(openRegister.id)
         setMovements(movs)
+        setPaymentTotals(await getSalePaymentTotals(openRegister.id))
       } else {
         setMovements([])
+        setPaymentTotals([])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar caixa')
@@ -329,7 +340,7 @@ export function CashRegisterPage() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">Vendas</p>
+                    <p className="text-sm text-gray-600">Vendas em dinheiro</p>
                     <p className="text-2xl font-bold text-gray-900">
                       R$ {cashRegister.totalSales.toFixed(2)}
                     </p>
@@ -367,6 +378,32 @@ export function CashRegisterPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Vendas por meio de pagamento: só o dinheiro entra no saldo do caixa */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Vendas por meio de pagamento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paymentTotals.length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhuma venda registrada neste caixa</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {paymentTotals.map((item) => (
+                    <div key={item.method}>
+                      <p className="text-sm text-gray-600">
+                        {PAYMENT_LABELS[item.method] ?? item.method}
+                      </p>
+                      <p className="text-lg font-semibold text-gray-900">R$ {item.total.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-3">
+                Só o dinheiro entra no saldo esperado do caixa. Os demais meios são conferidos à parte.
+              </p>
+            </CardContent>
+          </Card>
 
           {/* Actions */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -454,10 +491,12 @@ export function CashRegisterPage() {
                       </div>
                       <p
                         className={`font-semibold ${
-                          movement.type === 'withdrawal' ? 'text-red-600' : 'text-green-600'
+                          movement.type === 'withdrawal' || movement.type === 'refund'
+                            ? 'text-red-600'
+                            : 'text-green-600'
                         }`}
                       >
-                        {movement.type === 'withdrawal' ? '-' : '+'}R${' '}
+                        {movement.type === 'withdrawal' || movement.type === 'refund' ? '-' : '+'}R${' '}
                         {movement.amount.toFixed(2)}
                       </p>
                     </div>
