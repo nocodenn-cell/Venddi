@@ -130,7 +130,7 @@ Ambiente: stack Supabase local isolada (migrations 001 a 030), app em `localhost
 | PDV-06 | Múltiplos itens | PASSOU | Venda 5: Chá x2 + Pão = R$ 15,50 |
 | PDV-07 | Pagamento dividido | PASSOU após correção | Antes: impossível, cada forma lançava o restante inteiro. Depois: venda 4 com dinheiro R$ 4,00 + PIX R$ 6,00; caixa recebeu só R$ 4,00 |
 | PDV-08 | Troco | PASSOU após correção | Antes: não havia valor recebido (FALHOU). Depois: troco de R$ 5,28, R$ 1,00 e R$ 0,50. O valor recebido não é gravado (ver seção 8) |
-| PDV-09 | Cancelamento | PASSOU pela API / NÃO EXISTE na interface | `cancel_sale_with_reversal` pela API: venda 4 cancelada, estorno de R$ 4,00 no caixa, total volta. A tela de Vendas está "em desenvolvimento" e nenhuma tela chama `cancelSale` |
+| PDV-09 | Cancelamento pela tela de Vendas | PASSOU | Dono cancelou a Venda #9 (caixa aberto, R$ 10,00): venda `cancelled` com motivo, estorno de R$ 10,00 no caixa, total de vendas voltou a zero, auditoria `sale.cancel`. Venda #8 de caixa fechado foi recusada com a mensagem do banco. Caixa não vê o botão (sem `sales.cancel`). Antes, a API mandava um operador fixo (`usr_001`) e escondia a mensagem do banco |
 | PDV-10 | Duplo envio da mesma venda | PASSOU | Chave por tentativa (antes, uma chave nova por clique). Testes de integridade 2 e cenário F da concorrência |
 
 **Etapa 2 — Caixa (jornada completa pela interface)**
@@ -182,6 +182,5 @@ Ambiente: stack Supabase local isolada (migrations 001 a 030), app em `localhost
 - Um operador tem um caixa aberto por vez. Caixa compartilhado não é suportado.
 - A conciliação com cartão e PIX não faz parte desta entrega.
 - Produtos fracionados não são suportados: quantidade é inteira no banco e na tela (PDV-04).
-- Não há tela de cancelamento de venda. A RPC existe e foi testada pela API (PDV-09). A tela de Vendas está em desenvolvimento.
 - O valor recebido e o troco são calculados na tela e não são gravados. O caixa registra só o valor da venda em dinheiro, que é o que afeta o saldo. Se o troco precisar de auditoria, a tabela `payments` precisa de colunas próprias.
 - A migration 030 ainda não foi aplicada no remoto de homologação. A stack local está com 001 a 030. Na stack local, a 029 foi reaplicada manualmente após a correção de empresa ativa, porque `migration up` não reexecuta migrations já registradas.

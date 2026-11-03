@@ -8,7 +8,6 @@
 
 - Executar o roteiro de caixa (`docs/CAIXA_TRANSACIONAL.md`, seção 5) no projeto remoto de homologação.
 - Teste de interface para duplo clique em sangria e para dois caixas simultâneos (CX-29, CX-30).
-- Tela de cancelamento de venda: a RPC existe e foi testada pela API, mas a tela de Vendas está em desenvolvimento (PDV-09).
 - Produtos fracionados: quantidade é inteira no banco e na tela (PDV-04). Decidir se entra no escopo do MVP.
 - Gravar valor recebido e troco em `payments`, se o troco precisar de auditoria (ver `docs/CAIXA_TRANSACIONAL.md`, seção 8).
 - Homologar a migration 019 (inventário físico) e executar o roteiro de `docs/INVENTARIO_FISICO.md`, seção 5.
@@ -23,6 +22,7 @@
 
 ## Feito
 
+- 2026-11-03 — Tela de Vendas com histórico e cancelamento pela interface (dono, admin e gerente); corrigido o operador fixo e a mensagem genérica da API de cancelamento
 - 2026-11-03 — Validação operacional do PDV e do caixa: desconto, pagamento dividido, troco e chave de venda corrigidos; estorno com sinal negativo; detalhamento por meio de pagamento; jornada completa pela interface conferida no banco (migration 030 e testes de integridade)
 - 2026-11-03 — Segurança: políticas de escrita direta em vendas, pagamentos, itens, auditoria e caixa removidas (migration 030)
 - 2026-11-03 — PDV: grade de produtos carrega produtos reais do banco (antes era lista fixa com ids inválidos); venda pela grade verificada no banco (CX-31)
