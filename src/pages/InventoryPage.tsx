@@ -101,11 +101,34 @@ export function InventoryPage() {
     await loadItems(count.id)
   }
 
+  // Salva os rascunhos pendentes antes de sair. Se algum falhar, permanece na tela.
+  const flushDrafts = async (): Promise<boolean> => {
+    let allSaved = true
+    for (const item of items) {
+      if (drafts[item.id] === undefined) continue
+      const saved = await saveItem(item)
+      if (!saved) allSaved = false
+    }
+    return allSaved
+  }
+
   const backToList = async () => {
+    if (Object.keys(drafts).length > 0 && !(await flushDrafts())) return
     setActiveCount(null)
     setItems([])
     await loadCounts()
   }
+
+  // Evita perder contagens digitadas e ainda não salvas ao fechar a aba.
+  useEffect(() => {
+    if (Object.keys(drafts).length === 0) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [drafts])
 
   const isOpen = activeCount?.status === 'counting'
   const summary = useMemo(() => summarizeCount(items), [items])
@@ -136,15 +159,15 @@ export function InventoryPage() {
   }
 
   // Salva a contagem ao sair do campo (ou Enter). Não altera estoque.
-  const saveItem = async (item: InventoryCountItem) => {
-    if (!activeCount) return
+  const saveItem = async (item: InventoryCountItem): Promise<boolean> => {
+    if (!activeCount) return false
     const raw = drafts[item.id]
-    if (raw === undefined) return
+    if (raw === undefined) return true
 
     const parsed = parseCountedInput(raw)
     if (!parsed.ok) {
       setRowErrors((prev) => ({ ...prev, [item.id]: parsed.error }))
-      return
+      return false
     }
 
     try {
@@ -167,11 +190,13 @@ export function InventoryPage() {
         delete next[item.id]
         return next
       })
+      return true
     } catch (err) {
       setRowErrors((prev) => ({
         ...prev,
         [item.id]: err instanceof Error ? err.message : 'Erro ao salvar contagem',
       }))
+      return false
     } finally {
       setSavingItemId(null)
     }
@@ -317,8 +342,14 @@ export function InventoryPage() {
             </Button>
             <Button
               onClick={() => setCompleteModalOpen(true)}
-              disabled={busy || summary.pending > 0 || items.length === 0}
-              title={summary.pending > 0 ? 'Conte todos os produtos antes de concluir' : undefined}
+              disabled={busy || summary.pending > 0 || items.length === 0 || Object.keys(drafts).length > 0}
+              title={
+                summary.pending > 0
+                  ? 'Conte todos os produtos antes de concluir'
+                  : Object.keys(drafts).length > 0
+                    ? 'Saia do campo de um produto editado para salvar a contagem antes de concluir'
+                    : undefined
+              }
             >
               Concluir e ajustar estoque
             </Button>

@@ -197,7 +197,14 @@ BEGIN
   PERFORM pg_temp.expect_fail(OWNER_A, format(
     'UPDATE inventory_count_items SET counted_quantity = 99 WHERE count_id = %L', COUNT_2), 'permission denied');
 
-  -- 17. Produto de outra empresa não entra na contagem da empresa A
+  -- 17. Exclusão física de produto em inventário é recusada (sem apagar o item em silêncio)
+  PERFORM pg_temp.as_postgres();
+  PERFORM pg_temp.expect_fail(OWNER_A, format('DELETE FROM products WHERE id = %L', P2), 'violates foreign key');
+  IF NOT EXISTS (SELECT 1 FROM inventory_count_items WHERE count_id = COUNT_2 AND product_id = P2) THEN
+    RAISE EXCEPTION 'FALHOU: item do inventário removido pela exclusão de produto';
+  END IF;
+
+  -- 18. Produto de outra empresa não entra na contagem da empresa A
   PERFORM pg_temp.as_user(OWNER_A);
   COUNT_1 := (iniciar_inventario('Inventário 4')->>'count_id')::UUID;
   PERFORM pg_temp.as_postgres();

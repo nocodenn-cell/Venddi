@@ -47,7 +47,9 @@ CREATE TABLE inventory_count_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   count_id UUID NOT NULL REFERENCES inventory_counts(id) ON DELETE CASCADE,
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  -- RESTRICT: excluir um produto que faz parte de um inventário não pode apagar
+  -- o item em silêncio (exclusão no app é lógica, via is_active; este FK é a salvaguarda)
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
   -- Saldo no início do inventário (informativo; o cálculo usa system_quantity)
   expected_quantity INTEGER NOT NULL,
   -- Saldo do sistema no momento em que o produto foi contado
