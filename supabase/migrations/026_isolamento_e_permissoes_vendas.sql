@@ -160,8 +160,10 @@ BEGIN
   END;
   
   -- Serializa a numeração de vendas por empresa. FOR UPDATE não é permitido com
-  -- agregados (MAX), então a trava fica na linha da empresa.
-  PERFORM 1 FROM companies WHERE id = p_company_id FOR UPDATE;
+  -- agregados (MAX), então a trava fica na linha da empresa. Usa FOR NO KEY UPDATE:
+  -- FOR UPDATE conflita com a checagem de chave estrangeira (KEY SHARE) do movimento de
+  -- estoque, e a venda e a entrada se bloqueavam mutuamente (deadlock reproduzido).
+  PERFORM 1 FROM companies WHERE id = p_company_id FOR NO KEY UPDATE;
 
   SELECT COALESCE(MAX(sale_number), 0) + 1 INTO v_sale_number
   FROM sales
