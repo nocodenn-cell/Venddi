@@ -88,6 +88,8 @@ Legenda: PASSOU = executado e verde; FALHOU = executado e vermelho; NÃO TESTADO
 | CX-08 | Dono de outra empresa abre caixa na empresa A | `caixa_transacional.sql` (5b) | PASSOU |
 | CX-09 | Sangria dentro do saldo | `caixa_transacional.sql` (6); E2E passo 4 | PASSOU |
 | CX-10 | Sangria acima do saldo, e a recusa não grava nada (razão e totais inalterados) | `caixa_transacional.sql` (7); E2E passo 5 | PASSOU |
+| CX-34 | Fração de centavo (0,005) recusada em vez de arredondada | `caixa_transacional.sql` (9) | PASSOU |
+| CX-35 | Empresa suspensa com usuário ativo não opera caixa | `caixa_transacional.sql` (21) | PASSOU |
 | CX-11 | Suprimento sem duplicar com repetição | `caixa_transacional.sql` (8) | PASSOU |
 | CX-12 | Descrição vazia e valor zero | `caixa_transacional.sql` (9) | PASSOU |
 | CX-13 | Vendedor movimenta caixa; caixa 2 movimenta caixa do caixa 1 | `caixa_transacional.sql` (10) | PASSOU |

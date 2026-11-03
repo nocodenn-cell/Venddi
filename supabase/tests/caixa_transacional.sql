@@ -168,6 +168,9 @@ BEGIN
   PERFORM pg_temp.expect_fail('9 valor zero',
     format($q$SELECT registrar_movimento_caixa('%s', 'deposit', 0, 'Zero', 'chave-zero-1')$q$, v_cr),
     'Valor deve ser maior que zero');
+  PERFORM pg_temp.expect_fail('9 fração de centavo',
+    format($q$SELECT registrar_movimento_caixa('%s', 'withdrawal', 0.005, 'Meio centavo', 'chave-centavo-1')$q$, v_cr),
+    'no máximo duas casas decimais');
   RESET ROLE;
 
   -- 10. Permissões de movimento: vendedor recusado; outro caixa recusado; gerente aceito
@@ -284,6 +287,15 @@ BEGIN
   SELECT COUNT(*) INTO n FROM cash_operation_log;
   RESET ROLE;
   IF n <> 0 THEN RAISE EXCEPTION 'FALHOU 20: owner de outra empresa leu % operações', n; END IF;
+
+  -- 21. Empresa bloqueada não opera caixa (mesmo com usuário ativo)
+  UPDATE companies SET status = 'suspended' WHERE id = CO;
+  PERFORM pg_temp.as_auth(CAIXA1);
+  PERFORM pg_temp.expect_fail('21 empresa suspensa movimenta',
+    format($q$SELECT registrar_movimento_caixa('%s', 'deposit', 5, 'Empresa suspensa', 'chave-susp-1')$q$, v_cr),
+    'Empresa inativa');
+  RESET ROLE;
+  UPDATE companies SET status = 'active' WHERE id = CO;
 
   RAISE NOTICE 'CAIXA TRANSACIONAL OK';
 END $$;

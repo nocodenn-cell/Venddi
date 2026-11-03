@@ -145,6 +145,10 @@ BEGIN
   IF v_actor_id IS NULL THEN
     RAISE EXCEPTION 'Usuário não autenticado ou inativo' USING ERRCODE = '42501';
   END IF;
+  -- Empresa bloqueada, cancelada ou sem assinatura/trial válido: get_user_company_id() devolve NULL.
+  IF get_user_company_id() IS DISTINCT FROM v_actor_company THEN
+    RAISE EXCEPTION 'Empresa inativa ou sem assinatura ativa' USING ERRCODE = '42501';
+  END IF;
   IF p_company_id IS DISTINCT FROM v_actor_company THEN
     RAISE EXCEPTION 'Acesso negado: empresa diferente da sessão' USING ERRCODE = '42501';
   END IF;
@@ -153,6 +157,9 @@ BEGIN
   END IF;
   IF p_initial_amount IS NULL OR p_initial_amount < 0 THEN
     RAISE EXCEPTION 'Valor inicial inválido';
+  END IF;
+  IF p_initial_amount <> ROUND(p_initial_amount, 2) THEN
+    RAISE EXCEPTION 'Valor deve ter no máximo duas casas decimais';
   END IF;
   IF btrim(COALESCE(p_idempotency_key, '')) = '' THEN
     RAISE EXCEPTION 'Chave de idempotência obrigatória';
@@ -232,6 +239,10 @@ BEGIN
   IF v_actor_id IS NULL THEN
     RAISE EXCEPTION 'Usuário não autenticado ou inativo' USING ERRCODE = '42501';
   END IF;
+  -- Empresa bloqueada, cancelada ou sem assinatura/trial válido: get_user_company_id() devolve NULL.
+  IF get_user_company_id() IS DISTINCT FROM v_actor_company THEN
+    RAISE EXCEPTION 'Empresa inativa ou sem assinatura ativa' USING ERRCODE = '42501';
+  END IF;
   IF v_actor_role NOT IN ('owner', 'admin', 'manager', 'cashier') THEN
     RAISE EXCEPTION 'Papel sem permissão para movimentar caixa' USING ERRCODE = '42501';
   END IF;
@@ -240,6 +251,9 @@ BEGIN
   END IF;
   IF p_amount IS NULL OR p_amount <= 0 THEN
     RAISE EXCEPTION 'Valor deve ser maior que zero';
+  END IF;
+  IF p_amount <> ROUND(p_amount, 2) THEN
+    RAISE EXCEPTION 'Valor deve ter no máximo duas casas decimais';
   END IF;
   IF btrim(COALESCE(p_description, '')) = '' THEN
     RAISE EXCEPTION 'Descrição obrigatória';
@@ -360,11 +374,18 @@ BEGIN
   IF v_actor_id IS NULL THEN
     RAISE EXCEPTION 'Usuário não autenticado ou inativo' USING ERRCODE = '42501';
   END IF;
+  -- Empresa bloqueada, cancelada ou sem assinatura/trial válido: get_user_company_id() devolve NULL.
+  IF get_user_company_id() IS DISTINCT FROM v_actor_company THEN
+    RAISE EXCEPTION 'Empresa inativa ou sem assinatura ativa' USING ERRCODE = '42501';
+  END IF;
   IF v_actor_role NOT IN ('owner', 'admin', 'manager', 'cashier') THEN
     RAISE EXCEPTION 'Papel sem permissão para fechar caixa' USING ERRCODE = '42501';
   END IF;
   IF p_final_amount IS NULL OR p_final_amount < 0 THEN
     RAISE EXCEPTION 'Valor final inválido';
+  END IF;
+  IF p_final_amount <> ROUND(p_final_amount, 2) THEN
+    RAISE EXCEPTION 'Valor deve ter no máximo duas casas decimais';
   END IF;
   IF btrim(COALESCE(p_idempotency_key, '')) = '' THEN
     RAISE EXCEPTION 'Chave de idempotência obrigatória';
