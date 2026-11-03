@@ -110,13 +110,12 @@ Legenda: PASSOU = executado e verde; FALHOU = executado e vermelho; NÃO TESTADO
 | CX-28 | Fluxo completo pela interface, com conferência no banco | E2E manual (seção 5), 9 passos | PASSOU |
 | CX-29 | Duplo clique em "Registrar Sangria" pela interface | Não automatizado. Coberto pela chave de idempotência (CX-04/CX-05) e pelo botão desabilitado | NÃO TESTADO (UI) |
 | CX-30 | Dois caixas abertos ao mesmo tempo pela interface | Não automatizado. Coberto por CX-03 no banco | NÃO TESTADO (UI) |
-| CX-31 | Venda pela grade de produtos do PDV | Não executado. Por leitura do código, a grade é uma lista fixa com ids `'1'`..`'5'` (não são UUID de produto), e a venda usa esses ids | NÃO TESTADO (defeito confirmado por leitura, fora do caixa) |
+| CX-31 | Venda pela grade de produtos do PDV | A grade passou a carregar produtos reais (`getProducts`). E2E: venda pela grade, em dinheiro, gravada com item e produto reais | PASSOU (corrigido nesta branch) |
 | CX-32 | Aplicação das migrations 026–029 no ambiente remoto de homologação | Não executado (só a stack local) | NÃO TESTADO |
 | CX-33 | Rollback da 029 (`supabase/rollback/029_rollback.sql`), reaplicação da 028 e regressão de venda | Ensaio no Postgres local: rollback sem erro, 0 objetos da 029 restantes, 028 reaplicada, `sale_rpc_regression_check`, `isolamento_permissoes_vendas` e `e2e_fluxo_integrado` passam | PASSOU (ensaio local; não executado em homologação remota) |
 
 ## 8. Limites e pendências
 
-- A grade de produtos do PDV é mock (CX-31): ids `'1'`..`'5'`, não produtos do banco. Não foi executada uma venda por ela. Corrigir antes de homologar venda pela grade. A busca rápida já usa produtos reais, e foi o caminho usado no E2E.
 - Vendas não entram em `cash_operation_log`. A auditoria de venda continua em `sales` e nos movimentos `sale` de `cash_movements`.
 - O rollback de 029 remove o log e as colunas de fechamento. Fazer backup antes.
 - Um operador tem um caixa aberto por vez. Caixa compartilhado não é suportado.

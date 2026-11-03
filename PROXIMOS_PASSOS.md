@@ -2,7 +2,6 @@
 
 ## P0 — Quebrado/travado
 
-- PDV: a grade de produtos usa lista fixa (ids `'1'`..`'5'`), não produtos do banco. Venda pela grade não é segura até trocar por `getProducts` (`docs/CAIXA_TRANSACIONAL.md`, CX-31).
 - Migrations 026–029 ainda não estão no projeto remoto de homologação. Aplicar só com backup e pelo roteiro de `docs/PROCEDIMENTO_MIGRATIONS_HOMOLOGACAO.md`.
 
 ## P1 — Falta para lançar (MVP)
@@ -21,6 +20,7 @@
 
 ## Feito
 
+- 2026-11-03 — PDV: grade de produtos carrega produtos reais do banco (antes era lista fixa com ids inválidos); venda pela grade verificada no banco (CX-31)
 - 2026-11-03 — Caixa transacional: RPCs de abertura, sangria, suprimento e fechamento com idempotência, log imutável, trava de status e de caixa fechado (migration 029); testes SQL, concorrência e E2E
 - 2026-11-03 — Venda e estorno travam o caixa antes dos produtos (ordem de travas, migrations 028 e 029)
 - 2026-11-03 — Inventário físico: migration 019 (contagem, conclusão idempotente, ajuste auditável, RLS), tela Estoque e testes unit, banco e concorrência (#16)

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText, Keyboard } from 'lucide-react'
 import { createSale } from '@/lib/api/sales'
+import { getProducts } from '@/lib/api/products'
 import { roundToCents } from '@/lib/schemas/sales'
 import { getOpenCashRegister } from '@/lib/api/cashRegister'
 import { emitNfceForSale } from '@/lib/api/fiscal'
@@ -97,14 +98,16 @@ function PDVSalesScreen() {
     checkCashRegister()
   }, [user])
 
-  // Mock products
-  const products = [
-    { id: '1', name: 'Camiseta Básica', sku: 'CAM-001', price: 49.90 },
-    { id: '2', name: 'Calça Jeans', sku: 'CAL-002', price: 129.90 },
-    { id: '3', name: 'Tênis Esportivo', sku: 'TEN-003', price: 199.90 },
-    { id: '4', name: 'Boné Trucker', sku: 'BON-004', price: 39.90 },
-    { id: '5', name: 'Meia Esportiva', sku: 'MEI-005', price: 19.90 },
-  ]
+  // Produtos reais da empresa: os ids são os mesmos da busca rápida e da venda (create_atomic_sale)
+  const [products, setProducts] = useState<Array<{ id: string; name: string; sku: string; price: number }>>([])
+
+  useEffect(() => {
+    getProducts({ isActive: true }, { page: 1, pageSize: 100 })
+      .then((result) =>
+        setProducts(result.data.map((p) => ({ id: p.id, name: p.name, sku: p.sku, price: p.sellPrice })))
+      )
+      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar produtos'))
+  }, [])
 
   const addToCart = (product: typeof products[0]) => {
     const existingItem = cart.find(item => item.id === product.id)
