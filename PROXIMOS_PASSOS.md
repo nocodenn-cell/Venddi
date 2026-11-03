@@ -2,7 +2,8 @@
 
 ## P0 — Quebrado/travado
 
-- Race condition na venda: a RPC de venda valida saldo com `SELECT` sem lock e faz `UPDATE` sem `WHERE stock_quantity >= qty`; duas vendas simultâneas podem deixar saldo negativo (identificado por leitura de código, não reproduzido).
+- Oversell na venda: duas vendas simultâneas deixaram saldo -1 (reproduzido). Guarda mínima em PR #18 (`CHECK stock_quantity >= 0`, migration 020); falta a correção completa da RPC (`FOR UPDATE`, mensagem "Estoque insuficiente", ordenação por `product_id`). Aplicar a guarda só após checar saldos negativos.
+- Deadlock venda × conclusão de inventário (reproduzido): o banco aborta uma das transações; a correção é a ordenação da RPC de venda (mesmo PR de cima).
 
 ## P1 — Falta para lançar (MVP)
 
