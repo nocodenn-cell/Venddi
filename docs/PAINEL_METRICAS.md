@@ -79,16 +79,34 @@ A tela tem o botão "Estoque baixo", que liga o filtro `getProducts({ lowStock }
 
 ## Limites conhecidos
 
-- Arquivos sem uso que sobraram de uma versão anterior: `src/lib/stock/lowStock.ts`, `src/lib/api/paginate.ts` e `src/lib/__tests__/lowStock.test.ts`. Não quebram o build; a remoção está pendente de confirmação.
-- Codex: a revisão do commit `be5e243` não chegou; o último status observado estava no commit `d77da6d`.
+- Codex: a revisão do commit `be5e243` e dos commits seguintes não chegou durante esta rodada; o último status observado estava no commit `d77da6d`.
 - O botão "Filtros" da tela de Produtos continua sem função (já existia; fora do escopo).
+
+## Compatibilidade com os PRs #17 e #18
+
+Integração testada por merges reais das três branches (sem conflito):
+
+- Sequência de migrations: 001–018 (base), 019 (PR #17, inventário), 020–022 (PR #18, guarda de saldo e correções de venda), 023–025 (PR #19, painel e view). Números não colidem.
+- Dependências: 023 usa `sales`, `cash_registers`, `cash_movements`, `products` e `get_user_company_id()` (013/016). 024 usa `sales`. 025 usa `products`. Nenhuma depende de 019–022.
+- Interação: a trigger de saldo (020) recusa saldo negativo; o inventário (019) valida saldo antes de ajustar. A view (025) e a função (023) só leem.
+
+## Índice 024 com CREATE INDEX CONCURRENTLY
+
+`CONCURRENTLY` não roda dentro de transação, então não pode estar na migration. Procedimento testado localmente:
+
+1. Criar fora da migration: `CREATE INDEX CONCURRENTLY idx_sales_company_sale_date ON sales (company_id, sale_date DESC);`
+2. Confirmar que está válido: `indisvalid = true`.
+3. Aplicar a migration 024: vira no-op (`IF NOT EXISTS`), sem duplicar o índice.
+
+Se o `CONCURRENTLY` falhar, o índice fica inválido com o mesmo nome. A migration 024 recusa esse caso (guarda com `pg_index.indisvalid`). Testado: índice inválido provocado por construção que falha → 024 recusa; recuperação com `DROP INDEX CONCURRENTLY` + `CREATE INDEX CONCURRENTLY` → 024 no-op, índice único e válido.
 
 ## Reprodução do zero
 
-`supabase/tests/run_all_db_tests.sh` sobe um Postgres 16 descartável, cria o schema `auth` mínimo, aplica todas as migrations em ordem e roda todas as suítes SQL. Último resultado: `ALL DB TESTS OK`, com migrations 001–018 e 023–025.
+- `supabase/tests/run_all_db_tests.sh` (deste PR): Postgres 16 descartável, schema `auth` mínimo, migrations em ordem, todas as suítes SQL da pasta. Resultado com este PR: `ALL DB TESTS OK` (migrations 001–018 e 023–025).
+- Integração dos três PRs (`run_local_db_tests.sh` do PR #17): migrations 001–025, 13 suítes SQL, `INVENTORY CONCURRENCY OK`; concorrência da guarda de venda (PR #18) `SALE STOCK GUARD OK`. Unitários: 69 de 69 no conjunto integrado; typecheck e build passam.
 
 ## Próximos passos
 
-1. Aguardar a revisão do Codex sobre os commits desta rodada.
-2. Aplicar a migration 024 em homologação remota antes de produção; criar o índice com `CONCURRENTLY` se o volume de `sales` justificar.
-3. Confirmar a remoção dos três arquivos sem uso.
+1. Aguardar a revisão do Codex sobre os commits desta rodada e tratar os achados.
+2. Em homologação remota, antes de produção: criar o índice com `CONCURRENTLY` fora da migration, validar, e aplicar a 024 (no-op).
+3. Aplicar 023, 024 e 025 em homologação remota pelo fluxo oficial de migrations, antes de qualquer produção.
