@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { getCurrentCompanyId } from '@/lib/store/auth'
 import type { Sale, SaleItem, Payment } from '@/lib/schemas/sales'
 import { v4 as uuidv4 } from 'uuid'
+import { stockErrorMessage } from '@/lib/stockErrors'
 
 // Mock data for development
 let mockSales: Sale[] = []
@@ -161,7 +162,7 @@ export async function createSale(params: {
     }
   } catch (error) {
     console.error('Error creating sale:', error)
-    throw new Error('Erro ao criar venda')
+    throw new Error(stockErrorMessage(error) ?? 'Erro ao criar venda')
   }
 }
 

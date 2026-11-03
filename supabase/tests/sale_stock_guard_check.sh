@@ -21,8 +21,8 @@ $Q < "$T/b.sql" > "$T/b.out" 2>&1
 wait
 
 FINAL=$($Q -c "SELECT stock_quantity FROM products WHERE id='$P'")
-ERRS_A=$(grep -c "check constraint" "$T/a.out")
-ERRS_B=$(grep -c "check constraint" "$T/b.out")
+ERRS_A=$(grep -c "Estoque insuficiente para o produto" "$T/a.out")
+ERRS_B=$(grep -c "Estoque insuficiente para o produto" "$T/b.out")
 echo "baixa A: $( [ "$ERRS_A" -gt 0 ] && echo recusada || echo confirmada )"
 echo "baixa B: $( [ "$ERRS_B" -gt 0 ] && echo recusada || echo confirmada )"
 echo "saldo final: $FINAL (esperado 4 = 9 - 5; nunca negativo)"
