@@ -34,6 +34,8 @@ export interface CompleteCountResult {
   adjustedItems: number
 }
 
+const PAGE_SIZE = 1000
+
 function requireSupabase() {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('Inventário requer Supabase configurado')
@@ -68,14 +70,25 @@ export async function listInventoryCounts(): Promise<InventoryCount[]> {
 /** Itens de um inventário, com nome/SKU/código de barras do produto, ordenados por nome. */
 export async function getInventoryCountItems(countId: string): Promise<InventoryCountItem[]> {
   const client = requireSupabase()
-  const { data, error } = await client
-    .from('inventory_count_items')
-    .select('id, product_id, system_quantity, counted_quantity, applied_difference, products(name, sku, barcode, stock_quantity)')
-    .eq('count_id', countId)
+  const rows: Record<string, any>[] = []
 
-  if (error) throw new Error('Erro ao carregar itens do inventário')
+  // A API limita cada resposta (padrão 1000 linhas). Sem paginar, itens além da
+  // primeira página ficariam invisíveis e bloqueariam a conclusão para sempre.
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await client
+      .from('inventory_count_items')
+      .select('id, product_id, system_quantity, counted_quantity, applied_difference, products(name, sku, barcode, stock_quantity)')
+      .eq('count_id', countId)
+      .order('id')
+      .range(from, from + PAGE_SIZE - 1)
 
-  return (data ?? [])
+    if (error) throw new Error('Erro ao carregar itens do inventário')
+    const page = data ?? []
+    rows.push(...page)
+    if (page.length < PAGE_SIZE) break
+  }
+
+  return rows
     .map((row: Record<string, any>) => ({
       id: row.id,
       productId: row.product_id,

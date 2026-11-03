@@ -149,8 +149,84 @@ owner, um manager, um caixa e pelo menos 5 produtos ativos com saldo.
 
 ---
 
-## 6. Próximos passos recomendados
+## 6. Revisão complementar (pré-merge)
 
-- **P0:** corrigir a race condition da venda (lock `FOR UPDATE` e condição `stock_quantity >= qty` no `UPDATE`).
-- **P1:** paginação/busca no servidor para catálogos grandes; permissões de histórico com exibição de autor.
+### 6.1 Revisão do Codex (commit `67ccb43`) — 5 achados, todos corrigidos
+
+| # | Achado | Correção (commit `1047a8f` e seguintes) |
+|---|---|---|
+| 1 | Itens além da primeira página da API ficavam invisíveis e a conclusão nunca liberava. | `getInventoryCountItems` pagina em blocos de 1000 com ordem estável. Teste unitário com 2005 itens (`inventoryApi.test.ts`). |
+| 2 | Edição feita durante um salvamento em voo era apagada ao fim do salvamento anterior. | O rascunho só é limpo se o valor não mudou. Campo desabilitado enquanto o próprio item é salvo. |
+| 3 | Concluir podia usar o valor antigo quando a correção falhava ao salvar. | Concluir fica bloqueado com rascunho pendente ou salvamento em andamento, na UI e em `handleComplete`. |
+| 4 | Resposta atrasada de um inventário aparecia no outro (troca rápida de inventário). | Referência ao inventário ativo; respostas de outro inventário são descartadas. |
+| 5 | O script de concorrência não verificava resultado e ignorava falhas das sessões. | Asserções de saldo (5 e 4), de movimentos (1), de uma aplicação e uma idempotente, e código de saída das sessões. Sai com erro se qualquer invariante falhar. |
+
+Evidência: `bash supabase/tests/run_local_db_tests.sh` termina com `INVENTORY CONCURRENCY OK`.
+
+### 6.2 Exclusão de produto durante inventário
+
+- **Antes:** a FK `inventory_count_items.product_id` era `ON DELETE CASCADE`. Uma exclusão física de produto (permitida a managers pela RLS de DELETE) apagaria o item do inventário em silêncio, sem aviso.
+- **Depois:** `ON DELETE RESTRICT`. A exclusão é recusada, e o teste 17 do banco verifica que o item permanece.
+- A exclusão no app é lógica (`is_active = false`). Produto inativo que já está num inventário continua contável e entra no ajuste, de forma intencional, para não perder a contagem física.
+
+### 6.3 Deadlock entre venda, entrada e conclusão (medido)
+
+- **Entrada** (`registrar_entrada_estoque`) trava um único produto: não há ciclo.
+- **Registrar contagem** trava o inventário `FOR SHARE` e depois um produto. **Concluir** trava o inventário `FOR UPDATE`. Como registrar espera o inventário antes de travar produto, não há ciclo entre eles.
+- **Venda × conclusão**: a venda trava os produtos na ordem do carrinho, a conclusão na ordem de `product_id`. Experimento com P2→P1 (venda) contra P1→P2 (conclusão): **`deadlock detected` na conclusão**. A venda foi confirmada, saldos consistentes (P1=3, P2=9), nenhum ajuste parcial, inventário ainda em `counting`. O dano é um erro para o operador, que deve repetir a conclusão.
+- Correção de raiz: ordenar os itens da venda por `product_id` (descrito em `docs/PROPOSTA_BAIXA_CONCORRENTE.md`, PR #18).
+
+### 6.4 Race condition na baixa de venda (medido, PR separado)
+
+- Duas vendas de 5 unidades sobre saldo 9, sem guarda: **saldo final −1**.
+- Correção mínima no PR #18 (`020_stock_non_negative_guard.sql`, `CHECK (stock_quantity >= 0)`): uma venda confirmada, uma recusada, saldo final 4. Regressão: 10 suites SQL existentes passam com a constraint.
+- Limite: a RPC ainda devolve mensagem genérica de CHECK. A correção completa (`FOR UPDATE` e mensagem "Estoque insuficiente") está na proposta.
+- Este PR (#17) **não** altera `create_atomic_sale`.
+
+### 6.5 Interface com contagens não salvas
+
+Comportamentos após a correção:
+- Campo com rascunho é salvo ao sair do campo ou com Enter. Erro de validação ou de rede mantém o rascunho e mostra a mensagem na linha.
+- **Voltar** salva os rascunhos antes de sair. Se algum falhar, permanece na tela.
+- Aviso do navegador ao fechar a aba com rascunho pendente.
+- **Concluir** fica desabilitado com rascunho pendente ou salvamento em andamento.
+
+## 7. Roteiro E2E de homologação real
+
+Pré-requisitos: projeto Supabase de **homologação** com migrations 001–019 (e 020 se a PR #18 estiver aplicada). Usuários: owner, manager, caixa. Pelo menos 5 produtos ativos com saldo, um deles com saldo ≥ 10 para o teste de venda concorrente.
+
+Passos, com o resultado esperado em cada um:
+
+1. **Permissão do caixa.** Logar como caixa. "Estoque" não aparece no menu. Acessar `/app/estoque` pela URL é bloqueado.
+2. **Início.** Logar como manager → Estoque → Iniciar inventário. Esperado: lista com todos os produtos ativos; inativos ausentes.
+3. **Contagem com divergências.** Zero em um produto (falta total), valor maior em outro (sobra), valor igual ao saldo em um terceiro. Esperado: rótulos "Falta N", "Sobra N", "Sem divergência" e resumo atualizado.
+4. **Rascunho não salvo.** Digitar um valor e clicar em Voltar. Esperado: o valor é salvo antes de sair. Repetir com um valor inválido (`-1`): esperado, permanecer na tela com a mensagem.
+5. **Persistência.** Sair e reabrir o inventário. Esperado: as contagens continuam lá.
+6. **Venda durante a contagem.** Em outra aba, vender uma unidade de um produto já contado. Concluir. Esperado: saldo final = saldo após a venda + (contado − saldo na contagem). Conferir.
+7. **Conclusão bloqueada.** Com um produto sem contagem, "Concluir" desabilitado. Com rascunho editado não salvo, desabilitado.
+8. **Confirmação.** Concluir abre o resumo de divergências. Sem o checkbox, "Aplicar ajustes" fica desabilitado.
+9. **Histórico.** Esperado: um movimento `adjustment` por produto divergente, com nota "Inventário: …", autor e saldo.
+10. **Conclusão repetida.** Abrir o mesmo inventário concluído: sem novos movimentos.
+11. **Cancelamento.** Segundo inventário, cancelar. Esperado: estoque inalterado.
+12. **Isolamento.** Com owner de outra empresa, o inventário não aparece.
+13. **Exclusão de produto em inventário ativo.** Tentar excluir fisicamente um produto contado. Esperado: recusado (FK). Desativar pelo app é permitido e o item continua no inventário.
+14. **Concorrência real (opcional, com acesso ao banco de homologação).** Repetir o cenário do `inventory_concurrency_check.sh` com uma sessão de venda real. Esperado: saldo final correto e sem erro para a venda.
+
+## 8. Riscos restantes e recomendação
+
+| Risco | Severidade | Situação |
+|---|---|---|
+| Oversell na venda (`create_atomic_sale`) | P0 | Medido. Guarda mínima no PR #18. Correção completa pendente. |
+| Deadlock venda × conclusão | P1 | Medido. Erro para o operador, sem dano. Corrige com a ordenação do PR #18/próximo. |
+| E2E de navegador | P1 | Não executado aqui. Roteiro acima. |
+| Sem paginação no servidor para catálogos muito grandes | P2 | Itens carregados em blocos de 1000; a tela continua mostrando tudo de uma vez. |
+| Aplicação da migration 020 falha se houver saldo negativo | P1 | Esperado e intencional: exige correção manual antes. |
+
+**Recomendação: GO para merge do PR #17 após o roteiro E2E de homologação passar**, sem depender do PR #18 para o inventário (o inventário não depende da guarda de venda para estar correto; a guarda reduz o risco de oversell, que existe independentemente dele). **NO-GO para produção** enquanto o PR #18 (ou equivalente) não estiver aplicado, porque o oversell na venda é um defeito P0 já existente que afeta a confiança no estoque.
+
+## 9. Próximos passos recomendados
+
+- **P0:** revisar e aplicar a guarda de saldo (PR #18) em homologação; depois, a correção completa da RPC de venda (validação com `FOR UPDATE`, ordenação por `product_id`).
+- **P1:** executar o roteiro E2E da seção 7 em homologação e anexar as evidências ao PR.
 - **P1:** E2E automatizado com Playwright e usuários de teste em homologação.
+- **P2:** paginação no servidor para catálogos grandes; histórico com autor na tela.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
 import { ArrowLeft, ClipboardCheck, Search } from 'lucide-react'
 import {
@@ -77,14 +77,20 @@ export function InventoryPage() {
     }
   }
 
+  // Inventário atualmente aberto. Respostas de outro inventário são descartadas.
+  const activeCountIdRef = useRef<string | null>(null)
+
   const loadItems = async (countId: string) => {
     try {
       setLoadingItems(true)
-      setItems(await getInventoryCountItems(countId))
+      const loaded = await getInventoryCountItems(countId)
+      if (activeCountIdRef.current !== countId) return
+      setItems(loaded)
     } catch (err) {
+      if (activeCountIdRef.current !== countId) return
       setPageError(err instanceof Error ? err.message : 'Erro ao carregar itens')
     } finally {
-      setLoadingItems(false)
+      if (activeCountIdRef.current === countId) setLoadingItems(false)
     }
   }
 
@@ -93,7 +99,9 @@ export function InventoryPage() {
   }, [])
 
   const openCount = async (count: InventoryCount) => {
+    activeCountIdRef.current = count.id
     setActiveCount(count)
+    setItems([])
     setSearch('')
     setDrafts({})
     setRowErrors({})
@@ -114,6 +122,7 @@ export function InventoryPage() {
 
   const backToList = async () => {
     if (Object.keys(drafts).length > 0 && !(await flushDrafts())) return
+    activeCountIdRef.current = null
     setActiveCount(null)
     setItems([])
     await loadCounts()
@@ -186,6 +195,8 @@ export function InventoryPage() {
         )
       )
       setDrafts((prev) => {
+        // Só limpa se o valor não mudou durante o salvamento; uma edição nova continua pendente
+        if (prev[item.id] !== raw) return prev
         const next = { ...prev }
         delete next[item.id]
         return next
@@ -204,6 +215,8 @@ export function InventoryPage() {
 
   const handleComplete = async () => {
     if (!activeCount) return
+    // Nunca concluir com rascunho ou salvamento pendente: o banco aplicaria o valor antigo
+    if (savingItemId !== null || Object.keys(drafts).length > 0) return
     try {
       setBusy(true)
       setActionError(null)
@@ -342,7 +355,7 @@ export function InventoryPage() {
             </Button>
             <Button
               onClick={() => setCompleteModalOpen(true)}
-              disabled={busy || summary.pending > 0 || items.length === 0 || Object.keys(drafts).length > 0}
+              disabled={busy || summary.pending > 0 || items.length === 0 || Object.keys(drafts).length > 0 || savingItemId !== null}
               title={
                 summary.pending > 0
                   ? 'Conte todos os produtos antes de concluir'
@@ -415,7 +428,7 @@ export function InventoryPage() {
                         inputMode="numeric"
                         min={0}
                         step={1}
-                        disabled={!isOpen || !canAdjust}
+                        disabled={!isOpen || !canAdjust || savingItemId === item.id}
                         value={draft ?? (counted !== null ? String(counted) : '')}
                         placeholder="Contado"
                         onChange={(e) => setDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
