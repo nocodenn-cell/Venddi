@@ -15,9 +15,9 @@ import { useAuthStore } from '@/lib/store/auth'
 import {
   countDifference,
   matchesSearch,
-  parseCountedInput,
   summarizeCount,
 } from '@/lib/inventory/countMath'
+import { DraftCoordinator, type DraftSnapshot } from '@/lib/inventory/draftCoordinator'
 
 const STATUS_LABEL: Record<InventoryCount['status'], string> = {
   counting: 'Em conferência',
@@ -52,25 +52,36 @@ export function InventoryPage() {
   const [items, setItems] = useState<InventoryCountItem[]>([])
   const [loadingItems, setLoadingItems] = useState(false)
   const [search, setSearch] = useState('')
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
-  // Fonte de verdade síncrona dos rascunhos e dos salvamentos em voo (o estado do React pode atrasar)
-  const draftsRef = useRef<Record<string, string>>({})
-  const inFlightSaves = useRef(new Map<string, Promise<boolean>>())
-
-  const setDraft = (id: string, value: string | null) => {
-    const next = { ...draftsRef.current }
-    if (value === null) delete next[id]
-    else next[id] = value
-    draftsRef.current = next
-    setDrafts(next)
+  // Rascunhos, erros e salvamentos em voo vêm do coordenador (src/lib/inventory/draftCoordinator.ts),
+  // que é testado sem interface. A persistência fica aqui, injetada no coordenador.
+  const itemsRef = useRef<InventoryCountItem[]>([])
+  const activeCountRef = useRef<InventoryCount | null>(null)
+  const coordinatorRef = useRef<DraftCoordinator | null>(null)
+  if (coordinatorRef.current === null) {
+    coordinatorRef.current = new DraftCoordinator(async (itemId, countedQuantity) => {
+      const count = activeCountRef.current
+      const item = itemsRef.current.find((row) => row.id === itemId)
+      if (!count || !item) throw new Error('Produto não faz parte deste inventário')
+      const result = await saveInventoryCountItem({
+        countId: count.id,
+        productId: item.productId,
+        countedQuantity,
+      })
+      setItems((prev) =>
+        prev.map((row) =>
+          row.id === itemId ? { ...row, countedQuantity, systemQuantity: result.systemQuantity } : row
+        )
+      )
+    })
   }
-
-  const resetDrafts = () => {
-    draftsRef.current = {}
-    setDrafts({})
-  }
-  const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
-  const [savingItemId, setSavingItemId] = useState<string | null>(null)
+  const coordinator = coordinatorRef.current
+  const [view, setView] = useState<DraftSnapshot>(() => coordinator.snapshot())
+  useEffect(() => coordinator.subscribe(() => setView(coordinator.snapshot())), [coordinator])
+  itemsRef.current = items
+  activeCountRef.current = activeCount
+  const drafts = view.drafts
+  const rowErrors = view.errors
+  const hasSaving = view.saving.length > 0
 
   const [startModalOpen, setStartModalOpen] = useState(false)
   const [countName, setCountName] = useState('')
@@ -120,28 +131,19 @@ export function InventoryPage() {
     setActiveCount(count)
     setItems([])
     setSearch('')
-    resetDrafts()
-    setRowErrors({})
+    coordinator.reset()
     setActionError(null)
     await loadItems(count.id)
   }
 
-  // Salva os rascunhos pendentes antes de sair, esperando salvamentos em voo (sem reenviar contagens).
-  // Se algum falhar, permanece na tela.
-  const flushDrafts = async (): Promise<boolean> => {
-    let allSaved = true
-    for (const item of items) {
-      if (draftsRef.current[item.id] === undefined && !inFlightSaves.current.has(item.id)) continue
-      const saved = await saveItem(item)
-      if (!saved) allSaved = false
-    }
-    return allSaved
-  }
+  // Salva os rascunhos pendentes antes de sair (espera salvamentos em voo, sem reenviar contagens).
+  const flushDrafts = (): Promise<boolean> => coordinator.flush(items.map((item) => item.id))
+
+  const saveItem = (item: InventoryCountItem): Promise<boolean> => coordinator.saveOne(item.id)
 
   const backToList = async () => {
     // Só salva rascunhos de inventário em andamento; em inventário fechado o banco recusa
-    const salvamentoPendente = Object.keys(draftsRef.current).length > 0 || inFlightSaves.current.size > 0
-    if (activeCount?.status === 'counting' && salvamentoPendente && !(await flushDrafts())) return
+    if (activeCount?.status === 'counting' && coordinator.hasPending() && !(await flushDrafts())) return
     activeCountIdRef.current = null
     setActiveCount(null)
     setItems([])
@@ -187,65 +189,10 @@ export function InventoryPage() {
     }
   }
 
-  // Salva a contagem ao sair do campo (ou Enter). Não altera estoque.
-  const saveItem = async (item: InventoryCountItem): Promise<boolean> => {
-    // Se já há um salvamento deste item em voo, espera por ele em vez de reenviar a mesma contagem.
-    // O registro de contagem captura um saldo novo a cada chamada, então reenviar muda a diferença.
-    const pending = inFlightSaves.current.get(item.id)
-    if (pending) await pending
-
-    if (!activeCount) return false
-    const raw = draftsRef.current[item.id]
-    if (raw === undefined) return true
-
-    const parsed = parseCountedInput(raw)
-    if (!parsed.ok) {
-      setRowErrors((prev) => ({ ...prev, [item.id]: parsed.error }))
-      return false
-    }
-
-    const run = (async (): Promise<boolean> => {
-      try {
-        setSavingItemId(item.id)
-        setRowErrors((prev) => ({ ...prev, [item.id]: '' }))
-        const result = await saveInventoryCountItem({
-          countId: activeCount.id,
-          productId: item.productId,
-          countedQuantity: parsed.value,
-        })
-        setItems((prev) =>
-          prev.map((row) =>
-            row.id === item.id
-              ? { ...row, countedQuantity: parsed.value, systemQuantity: result.systemQuantity }
-              : row
-          )
-        )
-        // Só limpa se o valor não mudou durante o salvamento; uma edição nova continua pendente
-        if (draftsRef.current[item.id] === raw) setDraft(item.id, null)
-        return true
-      } catch (err) {
-        setRowErrors((prev) => ({
-          ...prev,
-          [item.id]: err instanceof Error ? err.message : 'Erro ao salvar contagem',
-        }))
-        return false
-      } finally {
-        setSavingItemId(null)
-      }
-    })()
-
-    inFlightSaves.current.set(item.id, run)
-    try {
-      return await run
-    } finally {
-      if (inFlightSaves.current.get(item.id) === run) inFlightSaves.current.delete(item.id)
-    }
-  }
-
   const handleComplete = async () => {
     if (!activeCount) return
-    // Nunca concluir com rascunho ou salvamento pendente: o banco aplicaria o valor antigo
-    if (savingItemId !== null || inFlightSaves.current.size > 0 || Object.keys(draftsRef.current).length > 0) return
+    // Nunca concluir com rascunho, salvamento em voo ou erro de contagem: o banco aplicaria valor antigo
+    if (!coordinator.canComplete()) return
     try {
       setBusy(true)
       setCompleteError(null)
@@ -271,8 +218,7 @@ export function InventoryPage() {
       await cancelInventoryCount(activeCount.id)
       setCancelModalOpen(false)
       // Inventário cancelado: rascunhos e erros pendentes deixam de fazer sentido (o banco recusa)
-      resetDrafts()
-      setRowErrors({})
+      coordinator.reset()
       setActiveCount({ ...activeCount, status: 'cancelled', cancelledAt: new Date().toISOString() })
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Não foi possível cancelar o inventário')
@@ -388,7 +334,7 @@ export function InventoryPage() {
             </Button>
             <Button
               onClick={() => setCompleteModalOpen(true)}
-              disabled={busy || summary.pending > 0 || items.length === 0 || Object.keys(drafts).length > 0 || savingItemId !== null}
+              disabled={busy || summary.pending > 0 || items.length === 0 || !coordinator.canComplete() || hasSaving}
               title={
                 summary.pending > 0
                   ? 'Conte todos os produtos antes de concluir'
@@ -461,15 +407,15 @@ export function InventoryPage() {
                         inputMode="numeric"
                         min={0}
                         step={1}
-                        disabled={!isOpen || !canAdjust || savingItemId === item.id}
+                        disabled={!isOpen || !canAdjust || coordinator.isSaving(item.id)}
                         value={draft ?? (counted !== null ? String(counted) : '')}
                         placeholder="Contado"
-                        onChange={(e) => setDraft(item.id, e.target.value)}
+                        onChange={(e) => coordinator.setDraft(item.id, e.target.value)}
                         onBlur={() => saveItem(item)}
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                         className="w-28 h-10 rounded-lg border border-gray-300 px-3 text-right disabled:bg-gray-100"
                       />
-                      {savingItemId === item.id && <span className="text-xs text-gray-500">Salvando...</span>}
+                      {coordinator.isSaving(item.id) && <span className="text-xs text-gray-500">Salvando...</span>}
                     </div>
                     <div className="text-sm md:text-right min-w-[10rem]">
                       {counted === null ? (
