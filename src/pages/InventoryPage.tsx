@@ -62,6 +62,7 @@ export function InventoryPage() {
   const [actionError, setActionError] = useState<string | null>(null)
 
   const [completeModalOpen, setCompleteModalOpen] = useState(false)
+  const [completeError, setCompleteError] = useState<string | null>(null)
   const [confirmAdjustments, setConfirmAdjustments] = useState(false)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
 
@@ -121,7 +122,8 @@ export function InventoryPage() {
   }
 
   const backToList = async () => {
-    if (Object.keys(drafts).length > 0 && !(await flushDrafts())) return
+    // Só salva rascunhos de inventário em andamento; em inventário fechado o banco recusa
+    if (activeCount?.status === 'counting' && Object.keys(drafts).length > 0 && !(await flushDrafts())) return
     activeCountIdRef.current = null
     setActiveCount(null)
     setItems([])
@@ -219,7 +221,7 @@ export function InventoryPage() {
     if (savingItemId !== null || Object.keys(drafts).length > 0) return
     try {
       setBusy(true)
-      setActionError(null)
+      setCompleteError(null)
       // Idempotente: se já estava concluído, o banco só devolve o estado atual
       await completeInventoryCount(activeCount.id)
       setCompleteModalOpen(false)
@@ -227,7 +229,8 @@ export function InventoryPage() {
       setActiveCount({ ...activeCount, status: 'completed', completedAt: new Date().toISOString() })
       await loadItems(activeCount.id)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Não foi possível concluir o inventário')
+      // Erro aparece dentro do diálogo (o modal cobre a página). O diálogo continua aberto.
+      setCompleteError(err instanceof Error ? err.message : 'Não foi possível concluir o inventário')
     } finally {
       setBusy(false)
     }
@@ -240,6 +243,9 @@ export function InventoryPage() {
       setActionError(null)
       await cancelInventoryCount(activeCount.id)
       setCancelModalOpen(false)
+      // Inventário cancelado: rascunhos e erros pendentes deixam de fazer sentido (o banco recusa)
+      setDrafts({})
+      setRowErrors({})
       setActiveCount({ ...activeCount, status: 'cancelled', cancelledAt: new Date().toISOString() })
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Não foi possível cancelar o inventário')
@@ -467,7 +473,7 @@ export function InventoryPage() {
 
       <Modal
         isOpen={completeModalOpen}
-        onClose={() => { setCompleteModalOpen(false); setConfirmAdjustments(false) }}
+        onClose={() => { setCompleteModalOpen(false); setConfirmAdjustments(false); setCompleteError(null) }}
         title="Concluir inventário"
         description="Os ajustes abaixo serão aplicados ao estoque e registrados no histórico. Esta ação não pode ser desfeita."
       >
@@ -495,6 +501,12 @@ export function InventoryPage() {
             />
             Conferi as contagens e confirmo os ajustes de estoque.
           </label>
+          {completeError && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {completeError}
+              <p className="mt-1 text-xs text-red-600">Recontar o produto indicado e concluir de novo.</p>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setCompleteModalOpen(false)} disabled={busy}>
               Voltar
