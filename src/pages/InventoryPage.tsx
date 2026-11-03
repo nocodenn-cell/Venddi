@@ -53,6 +53,22 @@ export function InventoryPage() {
   const [loadingItems, setLoadingItems] = useState(false)
   const [search, setSearch] = useState('')
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  // Fonte de verdade síncrona dos rascunhos e dos salvamentos em voo (o estado do React pode atrasar)
+  const draftsRef = useRef<Record<string, string>>({})
+  const inFlightSaves = useRef(new Map<string, Promise<boolean>>())
+
+  const setDraft = (id: string, value: string | null) => {
+    const next = { ...draftsRef.current }
+    if (value === null) delete next[id]
+    else next[id] = value
+    draftsRef.current = next
+    setDrafts(next)
+  }
+
+  const resetDrafts = () => {
+    draftsRef.current = {}
+    setDrafts({})
+  }
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const [savingItemId, setSavingItemId] = useState<string | null>(null)
 
@@ -104,17 +120,18 @@ export function InventoryPage() {
     setActiveCount(count)
     setItems([])
     setSearch('')
-    setDrafts({})
+    resetDrafts()
     setRowErrors({})
     setActionError(null)
     await loadItems(count.id)
   }
 
-  // Salva os rascunhos pendentes antes de sair. Se algum falhar, permanece na tela.
+  // Salva os rascunhos pendentes antes de sair, esperando salvamentos em voo (sem reenviar contagens).
+  // Se algum falhar, permanece na tela.
   const flushDrafts = async (): Promise<boolean> => {
     let allSaved = true
     for (const item of items) {
-      if (drafts[item.id] === undefined) continue
+      if (draftsRef.current[item.id] === undefined && !inFlightSaves.current.has(item.id)) continue
       const saved = await saveItem(item)
       if (!saved) allSaved = false
     }
@@ -123,7 +140,8 @@ export function InventoryPage() {
 
   const backToList = async () => {
     // Só salva rascunhos de inventário em andamento; em inventário fechado o banco recusa
-    if (activeCount?.status === 'counting' && Object.keys(drafts).length > 0 && !(await flushDrafts())) return
+    const salvamentoPendente = Object.keys(draftsRef.current).length > 0 || inFlightSaves.current.size > 0
+    if (activeCount?.status === 'counting' && salvamentoPendente && !(await flushDrafts())) return
     activeCountIdRef.current = null
     setActiveCount(null)
     setItems([])
@@ -171,8 +189,13 @@ export function InventoryPage() {
 
   // Salva a contagem ao sair do campo (ou Enter). Não altera estoque.
   const saveItem = async (item: InventoryCountItem): Promise<boolean> => {
+    // Se já há um salvamento deste item em voo, espera por ele em vez de reenviar a mesma contagem.
+    // O registro de contagem captura um saldo novo a cada chamada, então reenviar muda a diferença.
+    const pending = inFlightSaves.current.get(item.id)
+    if (pending) await pending
+
     if (!activeCount) return false
-    const raw = drafts[item.id]
+    const raw = draftsRef.current[item.id]
     if (raw === undefined) return true
 
     const parsed = parseCountedInput(raw)
@@ -181,44 +204,48 @@ export function InventoryPage() {
       return false
     }
 
-    try {
-      setSavingItemId(item.id)
-      setRowErrors((prev) => ({ ...prev, [item.id]: '' }))
-      const result = await saveInventoryCountItem({
-        countId: activeCount.id,
-        productId: item.productId,
-        countedQuantity: parsed.value,
-      })
-      setItems((prev) =>
-        prev.map((row) =>
-          row.id === item.id
-            ? { ...row, countedQuantity: parsed.value, systemQuantity: result.systemQuantity }
-            : row
+    const run = (async (): Promise<boolean> => {
+      try {
+        setSavingItemId(item.id)
+        setRowErrors((prev) => ({ ...prev, [item.id]: '' }))
+        const result = await saveInventoryCountItem({
+          countId: activeCount.id,
+          productId: item.productId,
+          countedQuantity: parsed.value,
+        })
+        setItems((prev) =>
+          prev.map((row) =>
+            row.id === item.id
+              ? { ...row, countedQuantity: parsed.value, systemQuantity: result.systemQuantity }
+              : row
+          )
         )
-      )
-      setDrafts((prev) => {
         // Só limpa se o valor não mudou durante o salvamento; uma edição nova continua pendente
-        if (prev[item.id] !== raw) return prev
-        const next = { ...prev }
-        delete next[item.id]
-        return next
-      })
-      return true
-    } catch (err) {
-      setRowErrors((prev) => ({
-        ...prev,
-        [item.id]: err instanceof Error ? err.message : 'Erro ao salvar contagem',
-      }))
-      return false
+        if (draftsRef.current[item.id] === raw) setDraft(item.id, null)
+        return true
+      } catch (err) {
+        setRowErrors((prev) => ({
+          ...prev,
+          [item.id]: err instanceof Error ? err.message : 'Erro ao salvar contagem',
+        }))
+        return false
+      } finally {
+        setSavingItemId(null)
+      }
+    })()
+
+    inFlightSaves.current.set(item.id, run)
+    try {
+      return await run
     } finally {
-      setSavingItemId(null)
+      if (inFlightSaves.current.get(item.id) === run) inFlightSaves.current.delete(item.id)
     }
   }
 
   const handleComplete = async () => {
     if (!activeCount) return
     // Nunca concluir com rascunho ou salvamento pendente: o banco aplicaria o valor antigo
-    if (savingItemId !== null || Object.keys(drafts).length > 0) return
+    if (savingItemId !== null || inFlightSaves.current.size > 0 || Object.keys(draftsRef.current).length > 0) return
     try {
       setBusy(true)
       setCompleteError(null)
@@ -244,7 +271,7 @@ export function InventoryPage() {
       await cancelInventoryCount(activeCount.id)
       setCancelModalOpen(false)
       // Inventário cancelado: rascunhos e erros pendentes deixam de fazer sentido (o banco recusa)
-      setDrafts({})
+      resetDrafts()
       setRowErrors({})
       setActiveCount({ ...activeCount, status: 'cancelled', cancelledAt: new Date().toISOString() })
     } catch (err) {
@@ -437,7 +464,7 @@ export function InventoryPage() {
                         disabled={!isOpen || !canAdjust || savingItemId === item.id}
                         value={draft ?? (counted !== null ? String(counted) : '')}
                         placeholder="Contado"
-                        onChange={(e) => setDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        onChange={(e) => setDraft(item.id, e.target.value)}
                         onBlur={() => saveItem(item)}
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                         className="w-28 h-10 rounded-lg border border-gray-300 px-3 text-right disabled:bg-gray-100"
