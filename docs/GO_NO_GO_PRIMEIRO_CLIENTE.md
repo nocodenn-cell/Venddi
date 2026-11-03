@@ -70,3 +70,34 @@ Data: 3 de novembro de 2026. Base: `homologacao/rc-integrado` (PRs #17, #18 e #1
 3. Informar o projeto de homologação remota e aplicar o procedimento de migrations, com backup antes.
 4. Tratar a revisão final do Codex.
 5. Reavaliar este GO/NO-GO com as evidências da homologação remota.
+
+## Atualização da rodada de fechamento
+
+Hashes exatos (commit no GitHub):
+
+| Item | Branch | Commit |
+|---|---|---|
+| PR #17 (inventário) | `claude/venddi-physical-inventory-b9599c` | `be8dc62` |
+| PR #18 (venda, estoque, caixa) | `fix/venda-baixa-estoque-concorrente` | `2fc09fb` |
+| PR #19 (painel, produtos, testes) | `fix/dashboard-dados-reais` | `bc7b4e8` |
+| Release candidate integrado | `homologacao/rc-integrado` | `a31b775` (contém os três PRs nas versões acima) |
+
+Resultados desta rodada:
+
+| # | Item | Status | Evidência |
+|---|---|---|---|
+| 1–5 | Inventário: voltar com salvamento pendente, concluir com salvamento em voo, falha sem perda, persistência única, conclusão bloqueada com pendência ou erro | PASSOU (lógica) | `draftCoordinator.test.ts`: 13 testes; mutação (remover a espera pelo salvamento em voo) faz os testes do cenário do Codex falharem |
+| 1–5 | Clique real em "Voltar" com teste automatizado de interface | NÃO TESTADO | O projeto não tem ferramenta de teste de interface; a página usa o coordenador testado, e um teste de fumaça no navegador passou |
+| 6 | Ordem de travas e ausência de deadlock com `FOR NO KEY UPDATE` | PASSOU | `docs/ORDEM_TRAVAS_E_DEADLOCK.md`; `concorrencia_chave_estrangeira.sh` (FOR UPDATE falha, NO KEY UPDATE passa) |
+| 7 | Concorrência venda × inventário | PASSOU | `stress_venda_inventario.sh`: 40 rodadas, 0 deadlocks, 0 falhas com a 028; sem a 028: 2 deadlocks em 40 |
+| 8 | Commits recentes do PR #19 integrados | PASSOU | Os 8 commits mais recentes do PR #19 são ancestrais do RC |
+| 9 | Migrations 023–025 e runner | PASSOU | Migrations no RC; `run_all_db_tests.sh`: `ALL DB TESTS OK`, saída 0 |
+| 10 | RC atualizado com os commits finais | PASSOU | `a31b775` |
+| 11 | Bateria integrada completa | PASSOU | `bateria_integrada.sh` em `a31b775`: reconstrução, 16 suítes, concorrências, estresse, rollback, 82 unitários, tipos, build |
+| 12 | Hashes | PASSOU | Tabela acima |
+
+Decisão desta rodada: os bloqueios para o primeiro cliente continuam os mesmos (módulo de caixa grava direto
+nas tabelas; PDV e fechamento de caixa pela tela não validados; homologação remota não executada). As
+correções de concorrência e permissões desta rodada não mudam a decisão.
+
+**Recomendação: GO para homologação remota. NO-GO para o primeiro cliente até os bloqueios B1–B4.**
