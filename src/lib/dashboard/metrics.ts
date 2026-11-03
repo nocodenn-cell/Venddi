@@ -18,8 +18,17 @@ export interface CashRegisterRow {
 
 export interface CashMovementRow {
   cashRegisterId: string
-  balanceAfter: number
-  createdAt: string
+  type: 'sale' | 'deposit' | 'withdrawal' | 'refund'
+  amount: number
+}
+
+// Entradas somam ao caixa; saídas subtraem. balance_after não é confiável: depósitos e
+// sangrias gravam 0 nele (src/lib/api/cashRegister.ts), então o saldo é recalculado.
+const SIGN_BY_TYPE: Record<CashMovementRow['type'], 1 | -1> = {
+  sale: 1,
+  deposit: 1,
+  withdrawal: -1,
+  refund: -1,
 }
 
 /** Início do dia local (00:00) para uma data. */
@@ -53,16 +62,18 @@ export function countLowStock(products: ProductStockRow[]): number {
 }
 
 /**
- * Saldo em caixa: para cada caixa aberto, o saldo após a última movimentação
- * (ou o valor inicial, se ainda não houve movimentação). Soma os caixas abertos.
+ * Saldo em caixa: para cada caixa aberto, valor inicial mais as movimentações com sinal
+ * (entradas somam, saídas subtraem). Soma os caixas abertos.
  */
 export function openCashBalance(registers: CashRegisterRow[], movements: CashMovementRow[]): number {
   let total = 0
   for (const register of registers) {
-    const last = movements
-      .filter((m) => m.cashRegisterId === register.id)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-    total += last ? last.balanceAfter : register.initialAmount
+    let balance = register.initialAmount
+    for (const movement of movements) {
+      if (movement.cashRegisterId !== register.id) continue
+      balance += SIGN_BY_TYPE[movement.type] * movement.amount
+    }
+    total += balance
   }
   return Math.round(total * 100) / 100
 }

@@ -52,16 +52,27 @@ describe('Dashboard - estoque baixo', () => {
 })
 
 describe('Dashboard - saldo em caixa', () => {
-  it('usa o último saldo do caixa e o inicial quando não há movimento', () => {
+  it('soma entradas e subtrai saídas sobre o valor inicial, por caixa', () => {
     const registers = [
       { id: 'c1', initialAmount: 100 },
       { id: 'c2', initialAmount: 50 },
     ]
     const movements = [
-      { cashRegisterId: 'c1', balanceAfter: 140, createdAt: '2026-11-03T10:00:00' },
-      { cashRegisterId: 'c1', balanceAfter: 120, createdAt: '2026-11-03T11:00:00' },
+      { cashRegisterId: 'c1', type: 'sale' as const, amount: 40 },
+      { cashRegisterId: 'c1', type: 'refund' as const, amount: 10 },
+      { cashRegisterId: 'c2', type: 'deposit' as const, amount: 20 },
     ]
-    expect(openCashBalance(registers, movements)).toBe(170)
+    // c1: 100 + 40 - 10 = 130; c2: 50 + 20 = 70
+    expect(openCashBalance(registers, movements)).toBe(200)
+  })
+
+  it('depósito e sangria entram no saldo mesmo com balance_after gravado como zero', () => {
+    const registers = [{ id: 'c1', initialAmount: 100 }]
+    const movements = [
+      { cashRegisterId: 'c1', type: 'deposit' as const, amount: 50 },
+      { cashRegisterId: 'c1', type: 'withdrawal' as const, amount: 30 },
+    ]
+    expect(openCashBalance(registers, movements)).toBe(120)
   })
 
   it('sem caixa aberto o saldo é zero', () => {
