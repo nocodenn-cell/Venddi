@@ -42,7 +42,11 @@ done
 echo "MIGRATIONS OK"
 
 for f in supabase/tests/*.sql; do
-  out=$(docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 < "$f" 2>&1) || true
+  # Código de saída é a fonte da verdade: falha de conexão (FATAL) ou de Docker também conta.
+  if ! out=$(docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 < "$f" 2>&1); then
+    echo "FAIL $(basename "$f") (saída não zero): $(echo "$out" | tail -2 | tr '\n' ' ')"
+    exit 1
+  fi
   if echo "$out" | grep -q ERROR; then
     echo "FAIL $(basename "$f"): $(echo "$out" | grep ERROR | head -1)"
     exit 1
