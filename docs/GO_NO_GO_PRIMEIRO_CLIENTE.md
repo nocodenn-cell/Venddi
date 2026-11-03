@@ -80,7 +80,7 @@ Hashes exatos (commit no GitHub):
 | PR #17 (inventário) | `claude/venddi-physical-inventory-b9599c` | `be8dc62` |
 | PR #18 (venda, estoque, caixa) | `fix/venda-baixa-estoque-concorrente` | `2fc09fb` |
 | PR #19 (painel, produtos, testes) | `fix/dashboard-dados-reais` | `bc7b4e8` |
-| Release candidate integrado | `homologacao/rc-integrado` | `a31b775` (contém os três PRs nas versões acima) |
+| Release candidate integrado | `homologacao/rc-integrado` | `a31b775` (código testado pela bateria; o topo atual `55508b1` só acrescenta este relatório) |
 
 Resultados desta rodada:
 
