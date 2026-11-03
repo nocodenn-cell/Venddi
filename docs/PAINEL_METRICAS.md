@@ -22,7 +22,7 @@ Fonte única: função `metricas_dashboard` (migration 023). O navegador só exi
 
 ## Estoque baixo na listagem de produtos
 
-`getProducts({ lowStock: true })` compara duas colunas (`stock_quantity <= min_stock`), o que o PostgREST não expressa. Os ids são calculados no cliente a partir dos produtos ativos (leitura paginada) e a listagem filtra por eles. A mesma regra está em `src/lib/stock/lowStock.ts`.
+`getProducts({ lowStock: true })` consulta a view `produtos_estoque_baixo` (migration 025): produtos ativos com `stock_quantity <= min_stock`. A view é `security_invoker`, então o RLS de `products` vale, e a paginação é a normal da listagem. A regra é a mesma do indicador do painel (migration 023).
 
 ## Testes
 
@@ -53,8 +53,17 @@ Todos os indicadores são filtrados pela empresa do usuário, no banco:
 ## Desempenho
 
 - Totais e contagens são calculados no banco, em uma chamada, sem trazer linhas ao navegador.
-- Índice `idx_sales_company_sale_date (company_id, sale_date DESC)` (migration 024) atende o período e as 5 mais recentes sem ordenação em memória.
-- Atenção de produção: a migration 024 usa `CREATE INDEX` (sem `CONCURRENTLY`), que bloqueia escritas em `sales` durante a construção. Aplicar em horário de pouco movimento.
+- Índice `idx_sales_company_sale_date (company_id, sale_date DESC)` (migration 024).
+- Medido no stack local (Postgres 17), com transação descartável:
+
+| Cenário | Recentes (5) sem 024 | Recentes (5) com 024 | Período 2 dias sem 024 | Período 2 dias com 024 |
+|---|---|---|---|---|
+| Loja com 1 milhão de vendas em 2 anos (dados densos) | 0,06 ms | 0,09 ms | 1,6 ms | 5,0 ms |
+| Loja antiga (1 milhão de vendas há 1 ano) ao lado de outra com 1 milhão de vendas recentes | **130 ms** | **0,13 ms** | **24 ms** | **0,09 ms** |
+
+Leitura: quando as vendas da empresa são densas no tempo, o planejador já usa o índice por data e a diferença é pequena. O ganho real aparece no pior caso multiempresa: uma loja com histórico antigo, numa tabela onde outra empresa tem muitas vendas recentes. Sem o 024, o banco varre as vendas recentes de todas as empresas até achar 5 da loja. Por isso o índice se justifica.
+
+- Custo: escrita extra em `sales` e bloqueio na criação. A migration 024 usa `CREATE INDEX` (sem `CONCURRENTLY`, que não roda dentro da transação da migration), que bloqueia escritas em `sales` enquanto constrói. Em produção, aplicar em horário de pouco movimento, ou criar o índice manualmente com `CREATE INDEX CONCURRENTLY` antes do deploy, e então marcar a migration como aplicada.
 
 ## Segurança (revisão)
 
@@ -66,15 +75,20 @@ Todos os indicadores são filtrados pela empresa do usuário, no banco:
 
 ## Estoque baixo na tela de Produtos (E2E)
 
-A tela tem o botão "Estoque baixo", que liga o filtro `getProducts({ lowStock })`. Testado no navegador: com o filtro, só o Boné Teste (no mínimo). Desligado, a lista completa volta.
+A tela tem o botão "Estoque baixo", que liga o filtro `getProducts({ lowStock })`. Testado no navegador, com a view da migration 025 aplicada pelo CLI oficial (`supabase migration up --local`): com o filtro, só o Boné Teste (no mínimo). Desligado, a lista completa volta (4 produtos).
 
 ## Limites conhecidos
 
-- O filtro de estoque baixo na listagem ainda lê todos os produtos ativos da empresa para decidir os ids. Para catálogos muito grandes, o próximo passo é uma função no banco, como a do painel.
-- Codex: a revisão do commit `be5e243` não chegou durante esta rodada; o status estava em "running" no commit `d77da6d`.
+- Arquivos sem uso que sobraram de uma versão anterior: `src/lib/stock/lowStock.ts`, `src/lib/api/paginate.ts` e `src/lib/__tests__/lowStock.test.ts`. Não quebram o build; a remoção está pendente de confirmação.
+- Codex: a revisão do commit `be5e243` não chegou; o último status observado estava no commit `d77da6d`.
+- O botão "Filtros" da tela de Produtos continua sem função (já existia; fora do escopo).
+
+## Reprodução do zero
+
+`supabase/tests/run_all_db_tests.sh` sobe um Postgres 16 descartável, cria o schema `auth` mínimo, aplica todas as migrations em ordem e roda todas as suítes SQL. Último resultado: `ALL DB TESTS OK`, com migrations 001–018 e 023–025.
 
 ## Próximos passos
 
-1. Revisão do Codex sobre os commits desta rodada (`530f6c8` a `3a645fa` e 024).
-2. Aplicar a migration 024 em homologação remota antes de produção (bloqueio curto de escrita em `sales`).
-3. Mover o filtro de estoque baixo da listagem para o banco, se o catálogo crescer.
+1. Aguardar a revisão do Codex sobre os commits desta rodada.
+2. Aplicar a migration 024 em homologação remota antes de produção; criar o índice com `CONCURRENTLY` se o volume de `sales` justificar.
+3. Confirmar a remoção dos três arquivos sem uso.
