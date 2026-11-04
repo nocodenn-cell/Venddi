@@ -10,6 +10,7 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [lowStockOnly, setLowStockOnly] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [totalPages, setTotalPages] = useState(0)
@@ -38,6 +39,7 @@ export function ProductsPage() {
       
       const filters: ProductFilters = {
         search: search || undefined,
+        lowStock: lowStockOnly || undefined,
       }
       
       const response = await getProducts(filters, { page: currentPage, pageSize })
@@ -53,7 +55,7 @@ export function ProductsPage() {
 
   useEffect(() => {
     loadProducts()
-  }, [currentPage, pageSize, search])
+  }, [currentPage, pageSize, search, lowStockOnly])
 
   // Create product
   const handleCreate = async (data: ProductInput) => {
@@ -194,6 +196,17 @@ export function ProductsPage() {
             <Button variant="outline">
               <Filter className="h-4 w-4" />
               Filtros
+            </Button>
+            <Button
+              variant={lowStockOnly ? 'primary' : 'outline'}
+              aria-pressed={lowStockOnly}
+              onClick={() => {
+                setLowStockOnly((on) => !on)
+                setCurrentPage(1)
+              }}
+            >
+              <AlertCircle className="h-4 w-4" />
+              Estoque baixo
             </Button>
           </div>
         </CardContent>
