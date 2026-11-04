@@ -552,7 +552,7 @@ function PDVSalesScreen() {
                 isProcessing ||
                 !cashRegisterId ||
                 payments.length === 0 ||
-                Math.abs(payments.reduce((sum, p) => sum + p.amount, 0) - total) > 0.01
+                Math.abs(payments.reduce((sum, p) => sum + p.amount, 0) - amountDue) > 0.01
               }
               className="flex-1"
             >

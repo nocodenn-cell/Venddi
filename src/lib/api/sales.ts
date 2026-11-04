@@ -248,6 +248,8 @@ export async function getSales(params: {
       status: row.status,
       notes: row.notes,
       createdAt: row.created_at,
+      cancelledAt: row.cancelled_at ?? undefined,
+      cancellationReason: row.cancellation_reason ?? undefined,
       completedAt: row.sale_date,
     }))
 
@@ -279,10 +281,9 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
   // Real Supabase implementation - ATOMIC CANCELLATION
   try {
     // Use atomic RPC function that handles full reversal
+    // Operador e empresa vêm da sessão no banco; o cliente só envia venda e motivo
     const { data: result, error } = await supabase.rpc('cancel_sale_with_reversal', {
       p_sale_id: saleId,
-      p_company_id: getCurrentCompanyId(), // Would come from auth context
-      p_operator_id: 'usr_001', // Would come from auth context
       p_reason: reason,
     })
 

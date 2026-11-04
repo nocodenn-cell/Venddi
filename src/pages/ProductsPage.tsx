@@ -23,6 +23,7 @@ export function ProductsPage() {
   // Entrada de estoque
   const { checkPermission } = useAuthStore()
   const canWriteProducts = checkPermission('products.write')
+  const canDeleteProducts = checkPermission('products.delete')
   const [stockProduct, setStockProduct] = useState<Product | null>(null)
   const [stockQuantity, setStockQuantity] = useState('')
   const [stockReason, setStockReason] = useState('')
@@ -154,10 +155,12 @@ export function ProductsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Produtos</h1>
           <p className="text-sm text-gray-500 mt-1">Gerencie seu catálogo de produtos</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Novo Produto
-        </Button>
+        {canWriteProducts && (
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Novo Produto
+          </Button>
+        )}
       </div>
 
       {/* Error Alert */}
@@ -271,20 +274,24 @@ export function ProductsPage() {
                                 <ArrowDownToLine className="h-4 w-4 text-emerald-600" />
                               </button>
                             )}
-                            <button
-                              onClick={() => openEditModal(product)}
-                              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                              title="Editar"
-                            >
-                              <Edit className="h-4 w-4 text-gray-600" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(product.id)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </button>
+                            {canWriteProducts && (
+                              <button
+                                onClick={() => openEditModal(product)}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                                title="Editar"
+                              >
+                                <Edit className="h-4 w-4 text-gray-600" />
+                              </button>
+                            )}
+                            {canDeleteProducts && (
+                              <button
+                                onClick={() => handleDelete(product.id)}
+                                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                title="Excluir"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
