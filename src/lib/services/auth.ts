@@ -13,6 +13,8 @@ export interface AuthResponse {
   user: User | null
   company?: Company | null
   error: string | null
+  // true quando o cadastro foi feito e a confirmação de e-mail ainda falta
+  pendingConfirmation?: boolean
 }
 
 // Mock users for development (when Supabase is not configured).
@@ -119,10 +121,7 @@ export async function signUp(data: SignUpData): Promise<AuthResponse> {
 
     // Sem sessão: a confirmação de e-mail está ativa. A empresa é criada no primeiro login.
     if (!authData.session) {
-      return {
-        user: null,
-        error: 'Enviamos um e-mail de confirmação. Confirme sua conta e depois entre na Venddi.',
-      }
+      return { user: null, error: null, pendingConfirmation: true }
     }
 
     // Empresa, usuário owner e trial são criados atomicamente no banco (migration 012)

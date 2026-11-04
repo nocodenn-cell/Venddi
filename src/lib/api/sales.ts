@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { getCurrentCompanyId } from '@/lib/store/auth'
 import type { Sale, SaleItem, Payment } from '@/lib/schemas/sales'
 import { v4 as uuidv4 } from 'uuid'
+import { stockErrorMessage } from '@/lib/stockErrors'
 
 // Mock data for development
 let mockSales: Sale[] = []
@@ -161,7 +162,7 @@ export async function createSale(params: {
     }
   } catch (error) {
     console.error('Error creating sale:', error)
-    throw new Error('Erro ao criar venda')
+    throw new Error(stockErrorMessage(error) ?? 'Erro ao criar venda')
   }
 }
 
@@ -248,6 +249,8 @@ export async function getSales(params: {
       status: row.status,
       notes: row.notes,
       createdAt: row.created_at,
+      cancelledAt: row.cancelled_at ?? undefined,
+      cancellationReason: row.cancellation_reason ?? undefined,
       completedAt: row.sale_date,
     }))
 
@@ -279,10 +282,9 @@ export async function cancelSale(saleId: string, reason: string): Promise<Sale> 
   // Real Supabase implementation - ATOMIC CANCELLATION
   try {
     // Use atomic RPC function that handles full reversal
+    // Operador e empresa vêm da sessão no banco; o cliente só envia venda e motivo
     const { data: result, error } = await supabase.rpc('cancel_sale_with_reversal', {
       p_sale_id: saleId,
-      p_company_id: getCurrentCompanyId(), // Would come from auth context
-      p_operator_id: 'usr_001', // Would come from auth context
       p_reason: reason,
     })
 

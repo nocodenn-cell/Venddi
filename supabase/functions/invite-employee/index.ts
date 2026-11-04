@@ -7,8 +7,8 @@
 //   list    -> status dos convites da empresa
 //
 // "Aceito" = o funcionário definiu a senha. A página /convite grava
-// user_metadata.password_set = true junto com a senha. Também conta como aceito
-// quem já fez login. Confirmar o e-mail sozinho não é aceite.
+// user_metadata.password_set = true junto com a senha. Abrir o link, confirmar o
+// e-mail ou entrar no sistema não basta: só a senha definida conta como aceite.
 //
 // Regras, sempre verificadas no servidor a partir do registro de quem chama:
 //   - quem chama é owner ou admin ativo, em empresa ativa, com assinatura válida
@@ -65,7 +65,7 @@ function safeAuthMessage(message: string | undefined): string {
 
 // Aceito = senha definida (marca do /convite) ou já fez login
 function hasAccepted(authUser: User): boolean {
-  return authUser.user_metadata?.password_set === true || !!authUser.last_sign_in_at
+  return authUser.user_metadata?.password_set === true
 }
 
 async function authorizeCaller(admin: SupabaseClient, req: Request): Promise<Caller> {

@@ -1,3 +1,4 @@
+import { toLocalDateInput } from '@/lib/date'
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge } from '@/components/ui'
 import { Users, RefreshCw, UserPlus } from 'lucide-react'
@@ -25,7 +26,7 @@ const roleLabels: Record<Employee['role'], string> = {
 }
 
 function toDateInput(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  return toLocalDateInput(date)
 }
 
 export function FuncionariosPage() {
