@@ -1,5 +1,7 @@
 # Auditoria do banco remoto Venddi e preparo da homologação (somente leitura)
 
+> **Correções (2026-11-04):** parte das afirmações abaixo foi revisada após a análise do histórico de migrations e do código do cancelamento. Os números 019 a 021 do remoto são outras migrations (não as do repositório), o cancelamento remoto tem checagem de papel, e a auditoria já é só leitura. A análise atualizada está em `docs/SEC01_RELATORIO.md`, seção 13.
+
 Data: 2026-11-04. Projeto remoto: **Venddi**, ref `jcvblxyzceszzehehyjd`, organização **Damatta**, região us-east-1, Postgres 17, status ACTIVE_HEALTHY, marcado como **PRODUÇÃO** pelo proprietário.
 
 Escopo desta auditoria: somente leitura. Nada foi alterado no remoto. Nenhuma migration foi aplicada, nenhum merge e nenhum deploy. Nenhum projeto Jinlong foi usado.
