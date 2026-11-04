@@ -6,6 +6,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProductsPage } from '@/pages/ProductsPage'
+import { InventoryPage } from '@/pages/InventoryPage'
 import { PDVPage } from '@/pages/PDVPage'
 import { CashRegisterPage } from '@/pages/CashRegisterPage'
 import { FinancialPage } from '@/pages/FinancialPage'
@@ -83,7 +84,7 @@ export function AppRouter() {
           {/* Gestão e Administração */}
           <Route path="gestao" element={<PermissionRoute permission="reports.read"><ManagementDashboardPage /></PermissionRoute>} />
           <Route path="produtos" element={<PermissionRoute permission="products.read"><ProductsPage /></PermissionRoute>} />
-          <Route path="estoque" element={<PermissionRoute permission="stock.read"><PlaceholderPage title="Estoque" description="Controle de estoque e movimentações" /></PermissionRoute>} />
+          <Route path="estoque" element={<PermissionRoute permission="stock.adjust"><InventoryPage /></PermissionRoute>} />
           <Route path="vendas" element={<PermissionRoute permission="sales.read"><VendasPage /></PermissionRoute>} />
           <Route path="fechamentos" element={<PermissionRoute permission="reports.read"><FechamentoCaixaPage /></PermissionRoute>} />
           <Route path="caixas" element={<PermissionRoute permission="cashier.read"><CashRegisterPage /></PermissionRoute>} />

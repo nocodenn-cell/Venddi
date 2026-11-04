@@ -44,7 +44,7 @@ const menuItems = [
     items: [
       { icon: LayoutDashboard, label: 'Painel', path: '/app/gestao', permission: 'dashboard.read' },
       { icon: Package, label: 'Produtos', path: '/app/produtos', permission: 'products.read' },
-      { icon: Warehouse, label: 'Estoque', path: '/app/estoque', permission: 'stock.read' },
+      { icon: Warehouse, label: 'Estoque', path: '/app/estoque', permission: 'stock.adjust' },
       { icon: Receipt, label: 'Vendas', path: '/app/vendas', permission: 'sales.read' },
       { icon: ClipboardList, label: 'Fechamento de Caixa', path: '/app/fechamentos', permission: 'reports.read' },
       { icon: DollarSign, label: 'Caixas', path: '/app/caixas', permission: 'cashier.read' },
