@@ -945,11 +945,16 @@ BEGIN
     END IF;
   END IF;
   
+  -- Única via de cancelamento: libera a trigger que bloqueia UPDATE direto de status (migration 021).
+  -- Sem isso, a versão de 4 argumentos usada pela tela falhava com 'só pode ser cancelada pelo cancelamento oficial'.
+  PERFORM set_config('app.cancel_sale', 'on', true);
+
   -- Update sale status
   UPDATE sales
   SET status = 'cancelled',
       cancelled_at = NOW(),
       cancellation_reason = p_reason,
+      cancelled_by = p_operator_id,
       updated_at = NOW()
   WHERE id = p_sale_id;
   
@@ -1081,4 +1086,4 @@ EXCEPTION
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal TO authenticated;
+GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal(UUID, UUID, UUID, TEXT) TO authenticated;
