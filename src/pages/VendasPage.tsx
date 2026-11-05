@@ -11,7 +11,7 @@ function toDateInput(date: Date): string {
 }
 
 export function VendasPage() {
-  const { checkPermission } = useAuthStore()
+  const { checkPermission, user } = useAuthStore()
   const canCancel = checkPermission('sales.cancel')
 
   const today = new Date()
@@ -75,7 +75,9 @@ export function VendasPage() {
     try {
       setCancelling(true)
       setCancelError(null)
-      await cancelSale(saleToCancel.id, reason.trim())
+      if (!user) throw new Error('Sessão expirada. Entre novamente para cancelar a venda.')
+      // O operador é o usuário logado: a RPC recusa qualquer outro valor.
+      await cancelSale(saleToCancel.id, reason.trim(), user.id)
       setSuccess(`Venda #${saleToCancel.saleNumber} cancelada. Estoque e caixa foram ajustados.`)
       setSaleToCancel(null)
       await load()
