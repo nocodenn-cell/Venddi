@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText, Keyboard } from 'lucide-react'
 import { createSale } from '@/lib/api/sales'
 import { roundToCents } from '@/lib/schemas/sales'
 import { getOpenCashRegister } from '@/lib/api/cashRegister'
+import { getProducts } from '@/lib/api/products'
+import { applyCashTender } from '@/lib/pdvHelpers'
 import { emitNfceForSale } from '@/lib/api/fiscal'
 import { useAuthStore } from '@/lib/store/auth'
 import { v4 as uuidv4 } from 'uuid'
@@ -97,16 +99,35 @@ function PDVSalesScreen() {
     checkCashRegister()
   }, [user])
 
-  // Mock products
-  const products = [
-    { id: '1', name: 'Camiseta Básica', sku: 'CAM-001', price: 49.90 },
-    { id: '2', name: 'Calça Jeans', sku: 'CAL-002', price: 129.90 },
-    { id: '3', name: 'Tênis Esportivo', sku: 'TEN-003', price: 199.90 },
-    { id: '4', name: 'Boné Trucker', sku: 'BON-004', price: 39.90 },
-    { id: '5', name: 'Meia Esportiva', sku: 'MEI-005', price: 19.90 },
-  ]
+  // Catálogo real da empresa. Antes a grade mostrava 5 produtos fixos com ids ('1'..'5') que
+  // não existem no banco: clicar neles gerava falha ao finalizar a venda.
+  const [products, setProducts] = useState<{ id: string; name: string; sku: string; price: number }[]>([])
+  useEffect(() => {
+    let cancelled = false
+    getProducts({ isActive: true }, { page: 1, pageSize: 60 })
+      .then((res) => {
+        if (!cancelled) {
+          setProducts(res.data.map((p) => ({ id: p.id, name: p.name, sku: p.sku, price: p.sellPrice })))
+        }
+      })
+      .catch((err) => console.error('Erro ao carregar produtos do PDV:', err))
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
-  const addToCart = (product: typeof products[0]) => {
+  // Valor entregue em dinheiro no próximo pagamento em dinheiro (para calcular o troco)
+  const [cashTendered, setCashTendered] = useState('')
+
+  // Chave de idempotência da tentativa atual. Antes era gerada a cada clique em "Confirmar":
+  // se a resposta se perdia e o operador tentava de novo, a venda era registrada em duplicidade
+  // (com baixa de estoque duplicada). Agora a chave só muda quando o carrinho ou os pagamentos mudam.
+  const checkoutKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    checkoutKeyRef.current = null
+  }, [cart, payments, discountPercent])
+
+  const addToCart = (product: { id: string; name: string; sku: string; price: number }) => {
     const existingItem = cart.find(item => item.id === product.id)
     if (existingItem) {
       setCart(cart.map(item => 
@@ -303,6 +324,7 @@ function PDVSalesScreen() {
           setShowPaymentModal(false)
           setPayments([])
           setDiscountPercent('')
+          setCashTendered('')
         }}
         title="Finalizar Venda"
         description={`Total: R$ ${amountDue.toFixed(2)}`}
@@ -352,14 +374,38 @@ function PDVSalesScreen() {
           <div className="space-y-2">
             <h4 className="font-semibold text-sm">Formas de Pagamento</h4>
             
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 whitespace-nowrap">Valor recebido em dinheiro</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="Mesmo valor"
+                value={cashTendered}
+                onChange={(e) => setCashTendered(e.target.value)}
+                className="w-32"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
-                  if (remaining > 0) {
-                    setPayments([...payments, { method: 'cash', amount: remaining, receivedAmount: remaining, changeAmount: 0 }])
+                  const paidSoFar = payments.reduce((sum, p) => sum + p.amount, 0)
+                  const remaining = roundToCents(amountDue - paidSoFar)
+                  if (remaining <= 0) return
+                  const tendered = cashTendered.trim() === ''
+                    ? remaining
+                    : Number(cashTendered.trim().replace(',', '.'))
+                  if (!Number.isFinite(tendered) || tendered <= 0) {
+                    setError('Informe um valor recebido válido (ou deixe em branco para o valor exato)')
+                    return
                   }
+                  // Só o valor aplicado à venda entra no pagamento; o troco não entra no caixa.
+                  const { applied, change } = applyCashTender(remaining, tendered)
+                  setPayments([...payments, { method: 'cash', amount: applied, receivedAmount: tendered, changeAmount: change }])
+                  setCashTendered('')
+                  setError(null)
                 }}
                 disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue}
               >
@@ -423,6 +469,9 @@ function PDVSalesScreen() {
                     {payment.method === 'pix' && 'PIX'}
                   </span>
                   <div className="flex items-center gap-2">
+                    {payment.changeAmount && payment.changeAmount > 0 ? (
+                      <span className="text-xs text-amber-600">Troco R$ {payment.changeAmount.toFixed(2)}</span>
+                    ) : null}
                     <span className="font-semibold">R$ {payment.amount.toFixed(2)}</span>
                     <button
                       onClick={() => setPayments(payments.filter((_, i) => i !== index))}
@@ -441,15 +490,15 @@ function PDVSalesScreen() {
                 </span>
               </div>
               
-              {payments.reduce((sum, p) => sum + p.amount, 0) < total && (
+              {payments.reduce((sum, p) => sum + p.amount, 0) < amountDue - 0.005 && (
                 <div className="text-sm text-red-600">
-                  Faltam R$ {(total - payments.reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}
+                  Faltam R$ {roundToCents(amountDue - payments.reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}
                 </div>
               )}
-              
-              {payments.reduce((sum, p) => sum + p.amount, 0) > total && (
-                <div className="text-sm text-amber-600">
-                  Troco: R$ {(payments.reduce((sum, p) => sum + p.amount, 0) - total).toFixed(2)}
+
+              {payments.reduce((sum, p) => sum + (p.changeAmount || 0), 0) > 0 && (
+                <div className="text-sm text-amber-600 font-semibold">
+                  Troco: R$ {payments.reduce((sum, p) => sum + (p.changeAmount || 0), 0).toFixed(2)}
                 </div>
               )}
             </div>
@@ -492,7 +541,12 @@ function PDVSalesScreen() {
                 try {
                   // Step 1: Create sale
                   const sale = await createSale({
-                    idempotencyKey: uuidv4(),
+                    idempotencyKey: (() => {
+                      // Mesma tentativa (mesmo carrinho e pagamentos) reutiliza a chave: um reenvio
+                      // após falha de rede retorna a venda já criada em vez de duplicar.
+                      if (!checkoutKeyRef.current) checkoutKeyRef.current = uuidv4()
+                      return checkoutKeyRef.current
+                    })(),
                     companyId: company?.id ?? '',
                     items: cart.map(item => ({
                       productId: item.id,
