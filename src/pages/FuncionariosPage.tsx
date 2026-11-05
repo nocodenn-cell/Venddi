@@ -1,3 +1,4 @@
+import { toLocalDateInput } from '@/lib/date'
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge } from '@/components/ui'
 import { Users, RefreshCw, UserPlus } from 'lucide-react'
@@ -5,8 +6,12 @@ import {
   listEmployees,
   setCommissionPercent,
   getCommissionReport,
+  listInviteStatus,
+  resendInvite,
+  cancelInvite,
   type Employee,
   type CommissionRow,
+  type InviteStatus,
 } from '@/lib/api/employees'
 import { useAuthStore } from '@/lib/store/auth'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -21,7 +26,7 @@ const roleLabels: Record<Employee['role'], string> = {
 }
 
 function toDateInput(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  return toLocalDateInput(date)
 }
 
 export function FuncionariosPage() {
@@ -39,6 +44,9 @@ export function FuncionariosPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [inviteStatuses, setInviteStatuses] = useState<InviteStatus[]>([])
+  const [inviteBusyId, setInviteBusyId] = useState<string | null>(null)
   const isOwner = user?.role === 'owner'
 
   const load = async () => {
@@ -54,6 +62,11 @@ export function FuncionariosPage() {
       ])
       setEmployees(list)
       setReport(rows)
+      try {
+        setInviteStatuses(await listInviteStatus())
+      } catch {
+        setInviteStatuses([])
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar funcionários')
     } finally {
@@ -111,6 +124,23 @@ export function FuncionariosPage() {
     }
   }
 
+  const inviteFor = (userId: string) => inviteStatuses.find((s) => s.userId === userId)
+
+  const runInviteAction = async (userId: string, action: () => Promise<void>, successText: string) => {
+    try {
+      setInviteBusyId(userId)
+      setError(null)
+      setSuccess(null)
+      await action()
+      setSuccess(successText)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível concluir a ação')
+    } finally {
+      setInviteBusyId(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -129,6 +159,10 @@ export function FuncionariosPage() {
 
       {error && (
         <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+      )}
+
+      {success && (
+        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">{success}</div>
       )}
 
       <Card>
@@ -206,6 +240,36 @@ export function FuncionariosPage() {
                         <div className="font-medium text-gray-900">{employee.fullName}</div>
                         <div className="text-xs text-gray-500">{employee.email}</div>
                         {!employee.isActive && <Badge variant="default" className="mt-1">Inativo</Badge>}
+                        {inviteFor(employee.id)?.pending && (
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="text-xs text-amber-700">Convite pendente</span>
+                            {canEditCommission && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={inviteBusyId === employee.id || !inviteFor(employee.id)?.canResend}
+                                title={inviteFor(employee.id)?.canResend ? 'Reenviar convite' : 'Aguarde alguns minutos para reenviar'}
+                                onClick={() => runInviteAction(employee.id, () => resendInvite(employee.id), `Convite reenviado para ${employee.email}`)}
+                              >
+                                Reenviar convite
+                              </Button>
+                            )}
+                            {canEditCommission && inviteFor(employee.id)?.canCancel && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={inviteBusyId === employee.id}
+                                onClick={() => {
+                                  if (window.confirm(`Cancelar o convite de ${employee.email}?`)) {
+                                    runInviteAction(employee.id, () => cancelInvite(employee.id), 'Convite cancelado')
+                                  }
+                                }}
+                              >
+                                Cancelar convite
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 pr-4">{roleLabels[employee.role]}</td>
                       <td className="py-3 pr-4">

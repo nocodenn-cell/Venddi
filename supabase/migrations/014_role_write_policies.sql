@@ -63,3 +63,9 @@ CREATE POLICY "Managers can update products" ON products FOR UPDATE
   USING (company_id = get_user_company_id() AND get_user_role() IN ('owner', 'admin', 'manager'));
 CREATE POLICY "Managers can delete products" ON products FOR DELETE
   USING (company_id = get_user_company_id() AND get_user_role() IN ('owner', 'admin', 'manager'));
+
+-- Exclusão de produto só para owner e admin (permissionsByRole: products.delete).
+-- Gerente pode criar e editar, mas não apagar.
+DROP POLICY IF EXISTS "Managers can delete products" ON products;
+CREATE POLICY "Owners and admins can delete products" ON products FOR DELETE
+  USING (company_id = get_user_company_id() AND get_user_role() IN ('owner', 'admin'));
