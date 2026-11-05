@@ -2,7 +2,6 @@
 
 ## P0 — Quebrado/travado
 
-- Aplicar no Supabase as migrations 022 a 028 (`supabase db push --yes`), somente com autorização explícita. Assinatura canônica de `cancel_sale_with_reversal` é (p_sale_id, p_reason).
 - Aplicar a migration 021 no Supabase: já feito em 2026-10-21 (ver Feito). Confirmar com `npx supabase migration list`.
 - Validar em uso real o convite de funcionário (convidar, abrir o link, definir senha, entrar) — depende de SMTP configurado e do link `/convite` no domínio de produção.
 - Confirmar `APP_URL` = `https://venddipdv.com` e as Redirect URLs no painel do Supabase.
@@ -28,7 +27,7 @@
 
 ## Feito
 
-- 2026-11-05 — Merge com `main` resolvido: `cancel_sale_with_reversal` mantida com 2 argumentos (sessão); migrations 022–028 reordenadas e testes de venda ajustados.
+- 2026-11-05 — Merge com `main` resolvido (`cancel_sale_with_reversal` com 2 argumentos) e migrations 022–028 aplicadas no Supabase.
 - 2026-10-21 — Migration 021 aplicada no Supabase e Edge Function `invite-employee` publicada (versão 4).
 - 2026-10-21 — Sprint do caixa: fechamento por caixa/período e cancelamento de venda com auditoria (PR #8).
 - 2026-10-21 — Convites de funcionários: reenvio, cancelamento, status e bloqueio de escalada (PR #7).
