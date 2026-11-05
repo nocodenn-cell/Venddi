@@ -37,3 +37,5 @@ for f in supabase/tests/*.sql; do
 done
 bash "$(dirname "$0")/inventory_concurrency_check.sh"
 bash "$(dirname "$0")/concorrencia_caixa.sh" 15
+
+bash "$(dirname "$0")/golden_reenvio_concorrente.sh"
