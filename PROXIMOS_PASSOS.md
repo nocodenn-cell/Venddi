@@ -2,6 +2,10 @@
 
 ## P0 — Quebrado/travado
 
+- Reconciliar o drift do remoto (auditoria adc8085: 019–021 registradas sem tabelas/triggers) antes de aplicar 022→032. Só com backup e autorização do proprietário.
+- Emissão fiscal: confirmar com o contador a regra de modelo (NFC-e 65 ou NF-e 55 por Ajuste SINIEF 23/2026) e a venda a CNPJ; depois Edge Function com token em secret. Ver docs/GO_LIVE_02.md, seção 3.
+- E2E de interface com stack Supabase completo (hoje a validação é de banco, em Postgres local).
+- Remover o caminho morto de emissão no cliente (focusNFeProvider.ts, fiscalService.ts) quando a Edge Function existir.
 - Migrations 026–030 ainda não estão no projeto remoto de homologação. Aplicar só com backup e pelo roteiro de `docs/PROCEDIMENTO_MIGRATIONS_HOMOLOGACAO.md`.
 
 ## P1 — Falta para lançar (MVP)
@@ -22,6 +26,7 @@
 
 ## Feito
 
+- 2026-11-05 — Integração PR #20 + PR #21 em `integracao/go-live-02`; cadeia de migrations 001→032 sobe num banco limpo; cancelamento pela tela corrigido; golden flow e reenvio concorrente testados; camada fiscal com proteção de credenciais (032).
 - 2026-11-03 — Tela de Vendas com histórico e cancelamento pela interface (dono, admin e gerente); corrigido o operador fixo e a mensagem genérica da API de cancelamento
 - 2026-11-03 — Validação operacional do PDV e do caixa: desconto, pagamento dividido, troco e chave de venda corrigidos; estorno com sinal negativo; detalhamento por meio de pagamento; jornada completa pela interface conferida no banco (migration 030 e testes de integridade)
 - 2026-11-03 — Segurança: políticas de escrita direta em vendas, pagamentos, itens, auditoria e caixa removidas (migration 030)
