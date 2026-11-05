@@ -55,7 +55,7 @@ BEGIN
   -- 2. Estorno com movimento de caixa (cancel_sale_with_reversal, como gerente/owner)
   PERFORM set_config('request.jwt.claim.sub', OWNER_AUTH::text, true);
   SET LOCAL ROLE authenticated;
-  r := cancel_sale_with_reversal(v_sale, CO, OWNER, 'Teste de regressão');
+  r := cancel_sale_with_reversal(v_sale, 'Teste de regressão');
   RESET ROLE;
   IF NOT (r->>'success')::boolean THEN RAISE EXCEPTION 'FALHOU: estorno recusado: %', r; END IF;
 
