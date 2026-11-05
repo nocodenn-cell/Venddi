@@ -6,6 +6,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { SignUpPage } from '@/pages/SignUpPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ProductsPage } from '@/pages/ProductsPage'
+import { InventoryPage } from '@/pages/InventoryPage'
 import { PDVPage } from '@/pages/PDVPage'
 import { CashRegisterPage } from '@/pages/CashRegisterPage'
 import { FinancialPage } from '@/pages/FinancialPage'
@@ -13,10 +14,9 @@ import { ManagementDashboardPage } from '@/pages/ManagementDashboardPage'
 import { HelpCenterPage } from '@/pages/HelpCenterPage'
 import { HardwareSettingsPage } from '@/pages/HardwareSettingsPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
+import { SalesPage } from '@/pages/SalesPage'
 import { FuncionariosPage } from '@/pages/FuncionariosPage'
 import { SetPasswordPage } from '@/pages/SetPasswordPage'
-import { VendasPage } from '@/pages/VendasPage'
-import { FechamentoCaixaPage } from '@/pages/FechamentoCaixaPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -83,9 +83,8 @@ export function AppRouter() {
           {/* Gestão e Administração */}
           <Route path="gestao" element={<PermissionRoute permission="reports.read"><ManagementDashboardPage /></PermissionRoute>} />
           <Route path="produtos" element={<PermissionRoute permission="products.read"><ProductsPage /></PermissionRoute>} />
-          <Route path="estoque" element={<PermissionRoute permission="stock.read"><PlaceholderPage title="Estoque" description="Controle de estoque e movimentações" /></PermissionRoute>} />
-          <Route path="vendas" element={<PermissionRoute permission="sales.read"><VendasPage /></PermissionRoute>} />
-          <Route path="fechamentos" element={<PermissionRoute permission="reports.read"><FechamentoCaixaPage /></PermissionRoute>} />
+          <Route path="estoque" element={<PermissionRoute permission="stock.adjust"><InventoryPage /></PermissionRoute>} />
+          <Route path="vendas" element={<PermissionRoute permission="sales.read"><SalesPage /></PermissionRoute>} />
           <Route path="caixas" element={<PermissionRoute permission="cashier.read"><CashRegisterPage /></PermissionRoute>} />
           <Route path="financeiro" element={<PermissionRoute permission="financial.read"><FinancialPage /></PermissionRoute>} />
           <Route path="funcionarios" element={<PermissionRoute permission="users.read"><FuncionariosPage /></PermissionRoute>} />

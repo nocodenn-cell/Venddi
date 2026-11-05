@@ -598,4 +598,4 @@ EXCEPTION
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal TO authenticated;
+GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal(UUID, UUID, UUID, TEXT) TO authenticated;
