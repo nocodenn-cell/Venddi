@@ -203,6 +203,12 @@ export async function emitNfceForSale(params: {
   fiscalDocument?: FiscalDocument
   error?: string
 }> {
+  // Emissão fiscal real não roda no navegador: o token do provedor não pode sair do servidor.
+  // Só o modo mock (desenvolvimento, sem rede) é permitido aqui. A emissão real fica na Edge Function
+  // após a homologação (ver docs/GO_LIVE_02.md, seção Fiscal).
+  if (!params.useMock) {
+    throw new Error('Emissão fiscal indisponível: a NFC-e real será emitida pelo servidor após a homologação')
+  }
   try {
     // Get fiscal configuration
     const config = await getFiscalConfiguration(params.companyId)
