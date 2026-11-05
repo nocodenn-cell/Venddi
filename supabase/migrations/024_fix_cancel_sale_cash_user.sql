@@ -1,0 +1,7 @@
+-- Venddi - Migration 024
+-- Originalmente (main, migration 022) corrigia o user_id do estorno em cash_movements e
+-- redefinia cancel_sale_with_reversal com 4 argumentos (p_sale_id, p_company_id, p_operator_id, p_reason).
+--
+-- Decisão: a assinatura canônica é (p_sale_id, p_reason), com empresa, papel e operador vindos da
+-- sessão (migration 021). A 021 já preenche user_id no estorno, então esta migration não altera nada.
+-- Mantida para preservar a numeração da main.
