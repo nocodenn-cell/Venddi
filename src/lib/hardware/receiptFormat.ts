@@ -171,7 +171,9 @@ export function escapeHtml(text: string): string {
 
 /**
  * Gera o documento HTML do cupom com CSS de impressora térmica.
- * @page usa a largura do rolo (80mm ou 58mm), margem zero e altura automática.
+ * A largura útil do rolo (80mm ou 58mm) é definida no body. Não usamos
+ * `@page { size: Xmm auto }`: `auto` não é valor válido para a altura em @page
+ * e o navegador ignora a regra. O tamanho do papel é escolhido no diálogo de impressão.
  */
 export function buildReceiptHtml(data: ReceiptData, paperWidth: ReceiptPaperWidth = 80): string {
   const columns = RECEIPT_COLUMNS[paperWidth]
@@ -188,7 +190,7 @@ export function buildReceiptHtml(data: ReceiptData, paperWidth: ReceiptPaperWidt
 <meta charset="utf-8">
 <title>Cupom ${escapeHtml(String(data.saleNumber))}</title>
 <style>
-  @page { size: ${paperWidth}mm auto; margin: 0; }
+  @page { margin: 0; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
   body {
     width: ${printableMm}mm;

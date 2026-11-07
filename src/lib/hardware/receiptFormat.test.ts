@@ -144,16 +144,17 @@ describe('escapeHtml', () => {
 })
 
 describe('buildReceiptHtml', () => {
-  it('usa @page com largura de 80mm por padrão', () => {
+  it('usa largura útil de 72mm para 80mm por padrão, sem size inválido em @page', () => {
     const html = buildReceiptHtml(sample)
-    expect(html).toContain('@page { size: 80mm auto; margin: 0; }')
+    expect(html).toContain('@page { margin: 0; }')
+    expect(html).not.toMatch(/size:\s*\d+mm\s+auto/)
     expect(html).toContain('width: 72mm')
   })
 
-  it('usa largura de 58mm quando pedido', () => {
+  it('usa largura útil de 48mm quando 58mm é pedido', () => {
     const html = buildReceiptHtml(sample, 58)
-    expect(html).toContain('@page { size: 58mm auto; margin: 0; }')
     expect(html).toContain('width: 48mm')
+    expect(html).not.toContain('size: 58mm')
   })
 
   it('escapa o nome da loja no HTML', () => {
