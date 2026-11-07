@@ -139,9 +139,14 @@ Até lá: **FISCAL_ENABLED permanece false e produção permanece bloqueada.**
 
 | Verificação | Resultado |
 |---|---|
-| Testes unitários fiscais (core, focus, servidor) | PASSOU (43 de 43) |
+| Testes unitários fiscais (core, focus, servidor) | PASSOU |
 | Typecheck | PASSOU |
-| Migrations 001→033 + suíte SQL | ver relatório na mensagem final |
+| Migrations 001→033 em banco limpo + suíte SQL completa (`run_local_db_tests.sh`) | PASSOU (exit 0; 24 arquivos SQL; concorrência de caixa 15 rodadas, 0 violações; reenvio concorrente OK) |
+| Testes unitários completos (vitest) e build | PASSOU (15 arquivos, 139 testes; build OK) |
 | Edge Function em runtime Deno | NÃO TESTADO (Deno indisponível no ambiente) |
 | Homologação com a Focus | NÃO TESTADO (não autorizado; sem credencial) |
 | Deploy | NÃO FEITO (não autorizado) |
+
+## 12. Incidente de verificação desta etapa (registrado)
+
+Durante a verificação, execuções interrompidas por timeout deixaram processos órfãos de `concorrencia_caixa.sh` e do runner escrevendo no mesmo container. Isso produziu falsas falhas de concorrência (fechamento "já fechado" em rodadas sem chamada de fechamento). Os processos foram encerrados e o container foi recriado do zero. A suíte completa foi então executada uma única vez, sem interferência, com o resultado da seção 11. Um comando de depuração foi também disparado por engano (`run_local_db_tests.sh --help`, que não tem essa opção) e interrompido na hora.
