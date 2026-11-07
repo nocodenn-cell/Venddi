@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
 import { Badge } from '@/components/ui'
 import { SetupChecklist } from '@/components/SetupChecklist'
@@ -6,6 +7,8 @@ import { LowStockAlerts } from '@/components/LowStockAlerts'
 import { AdvancedFilters, DashboardFilters } from '@/components/AdvancedFilters'
 import { ExportButton } from '@/components/ExportButton'
 import { useAuthStore } from '@/lib/store/auth'
+import { fetchDashboardData, type DashboardData } from '@/lib/api/dashboard'
+import { percentChange } from '@/lib/dashboard/metrics'
 import {
   DollarSign,
   ShoppingCart,
@@ -15,18 +18,40 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react'
-import { useState } from 'react'
 
-// Mock data - will be replaced with real data from API
-const mockData = {
-  salesToday: 2450.0,
-  salesYesterday: 1890.0,
-  ordersToday: 12,
-  ordersYesterday: 9,
-  lowStockProducts: 5,
-  pendingBills: 3,
-  totalPending: 1250.0,
-  cashBalance: 8750.0,
+const STATUS_LABEL: Record<string, string> = {
+  completed: 'Concluída',
+  cancelled: 'Cancelada',
+  refunded: 'Estornada',
+}
+
+const STATUS_VARIANT: Record<string, 'success' | 'danger' | 'warning'> = {
+  completed: 'success',
+  cancelled: 'danger',
+  refunded: 'warning',
+}
+
+function formatMoney(value: number): string {
+  return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+// Variação vs ontem. Sem base (ontem = 0) não mostra porcentagem inventada.
+function ChangeLabel({ current, previous }: { current: number; previous: number }) {
+  const change = percentChange(current, previous)
+  if (change === null) {
+    return <p className="text-xs text-gray-500 mt-1">sem vendas ontem para comparar</p>
+  }
+  const up = change >= 0
+  return (
+    <div className={`flex items-center text-xs mt-1 ${up ? 'text-green-600' : 'text-red-600'}`}>
+      {up ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+      {Math.abs(change).toFixed(1)}% vs ontem
+    </div>
+  )
 }
 
 export function DashboardPage() {
@@ -34,9 +59,31 @@ export function DashboardPage() {
   const [filters, setFilters] = useState<DashboardFilters>({
     dateRange: 'today',
   })
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const salesChange = ((mockData.salesToday - mockData.salesYesterday) / mockData.salesYesterday) * 100
-  const ordersChange = ((mockData.ordersToday - mockData.ordersYesterday) / mockData.ordersYesterday) * 100
+  useEffect(() => {
+    let active = true
+    fetchDashboardData()
+      .then((result) => {
+        if (active) setData(result)
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : 'Erro ao carregar o painel')
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const exportRows = data
+    ? [
+        { metric: 'Vendas hoje', value: formatMoney(data.salesToday.total) },
+        { metric: 'Pedidos hoje', value: String(data.salesToday.count) },
+        { metric: 'Produtos com estoque baixo', value: String(data.lowStockCount) },
+        { metric: 'Saldo em caixa', value: formatMoney(data.cashBalance) },
+      ]
+    : []
 
   return (
     <div className="space-y-6">
@@ -47,7 +94,7 @@ export function DashboardPage() {
           <p className="text-sm text-gray-500 mt-1">Visão geral do seu negócio</p>
         </div>
         <ExportButton
-          data={[]}
+          data={exportRows}
           filename="dashboard-report"
           columns={[
             { key: 'metric', label: 'Métrica' },
@@ -63,9 +110,13 @@ export function DashboardPage() {
       <AdvancedFilters
         filters={filters}
         onFiltersChange={setFilters}
-        operators={['João Silva', 'Maria Santos', 'Pedro Oliveira']}
-        categories={['Vestuário', 'Calçados', 'Acessórios']}
+        operators={[]}
+        categories={[]}
       />
+
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -77,12 +128,9 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R$ {mockData.salesToday.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {data ? formatMoney(data.salesToday.total) : '—'}
             </div>
-            <div className={`flex items-center text-xs mt-1 ${salesChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {salesChange >= 0 ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-              {Math.abs(salesChange).toFixed(1)}% vs ontem
-            </div>
+            {data && <ChangeLabel current={data.salesToday.total} previous={data.salesYesterday.total} />}
           </CardContent>
         </Card>
 
@@ -93,11 +141,8 @@ export function DashboardPage() {
             <ShoppingCart className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockData.ordersToday}</div>
-            <div className={`flex items-center text-xs mt-1 ${ordersChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {ordersChange >= 0 ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-              {Math.abs(ordersChange).toFixed(1)}% vs ontem
-            </div>
+            <div className="text-2xl font-bold">{data ? data.salesToday.count : '—'}</div>
+            {data && <ChangeLabel current={data.salesToday.count} previous={data.salesYesterday.count} />}
           </CardContent>
         </Card>
 
@@ -108,7 +153,7 @@ export function DashboardPage() {
             <Package className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockData.lowStockProducts}</div>
+            <div className="text-2xl font-bold">{data ? data.lowStockCount : '—'}</div>
             <p className="text-xs text-gray-500 mt-1">produtos precisam reposição</p>
           </CardContent>
         </Card>
@@ -120,10 +165,8 @@ export function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-[#0EA572]" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              R$ {mockData.cashBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">disponível hoje</p>
+            <div className="text-2xl font-bold">{data ? formatMoney(data.cashBalance) : '—'}</div>
+            <p className="text-xs text-gray-500 mt-1">nos caixas abertos</p>
           </CardContent>
         </Card>
       </div>
@@ -136,23 +179,21 @@ export function DashboardPage() {
             <CardTitle>Vendas Recentes</CardTitle>
           </CardHeader>
           <CardContent>
+            {data && data.recentSales.length === 0 && (
+              <p className="text-sm text-gray-500">Nenhuma venda registrada ainda.</p>
+            )}
             <div className="space-y-4">
-              {[
-                { id: 1, customer: 'Maria Silva', value: 150.0, time: '10:30', status: 'completed' },
-                { id: 2, customer: 'João Santos', value: 89.9, time: '10:15', status: 'completed' },
-                { id: 3, customer: 'Ana Costa', value: 234.5, time: '09:45', status: 'completed' },
-                { id: 4, customer: 'Pedro Oliveira', value: 67.0, time: '09:30', status: 'completed' },
-              ].map((sale) => (
+              {data?.recentSales.map((sale) => (
                 <div key={sale.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{sale.customer}</p>
-                    <p className="text-xs text-gray-500">{sale.time}</p>
+                    <p className="text-sm font-medium text-gray-900">Venda #{sale.saleNumber}</p>
+                    <p className="text-xs text-gray-500">{formatTime(sale.saleDate)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">
-                      R$ {sale.value.toFixed(2)}
-                    </p>
-                    <Badge variant="success" className="text-xs">Concluída</Badge>
+                    <p className="text-sm font-semibold text-gray-900">{formatMoney(sale.total)}</p>
+                    <Badge variant={STATUS_VARIANT[sale.status]} className="text-xs">
+                      {STATUS_LABEL[sale.status]}
+                    </Badge>
                   </div>
                 </div>
               ))}
@@ -170,24 +211,16 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
-                <p className="text-sm font-medium text-amber-900">Estoque baixo</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  {mockData.lowStockProducts} produtos abaixo do mínimo
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                <p className="text-sm font-medium text-red-900">Contas a vencer</p>
-                <p className="text-xs text-red-700 mt-1">
-                  {mockData.pendingBills} contas vencendo hoje (R$ {mockData.totalPending.toFixed(2)})
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                <p className="text-sm font-medium text-blue-900">Meta mensal</p>
-                <p className="text-xs text-blue-700 mt-1">
-                  68% da meta atingida
-                </p>
-              </div>
+              {data && data.lowStockCount > 0 ? (
+                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+                  <p className="text-sm font-medium text-amber-900">Estoque baixo</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    {data.lowStockCount} produto(s) no mínimo ou abaixo
+                  </p>
+                </div>
+              ) : (
+                data && <p className="text-sm text-gray-500">Nenhum produto com estoque baixo.</p>
+              )}
             </div>
           </CardContent>
         </Card>

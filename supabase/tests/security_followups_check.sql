@@ -56,10 +56,12 @@ DO $$ DECLARE n int; r jsonb; s text; BEGIN
   -- 4) Caixa não cancela venda por UPDATE direto
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claim.sub','c0000000-0000-4000-8000-00000000000c',true);
-  BEGIN
+    -- Sem política de UPDATE em sales (migration 030) o caixa não altera a linha: 0 linhas, sem erro.
+    -- Conferimos o estado final: a venda não pode ter ficado cancelada.
     UPDATE sales SET status = 'cancelled' WHERE id = '5a000000-0000-4000-8000-0000000000a1';
-    RAISE EXCEPTION 'FALHOU: cancelamento direto aceito';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+    IF EXISTS (SELECT 1 FROM sales WHERE id = '5a000000-0000-4000-8000-0000000000a1' AND status = 'cancelled') THEN
+      RAISE EXCEPTION 'FALHOU: cancelamento direto aceito';
+    END IF;
   RESET ROLE;
   SELECT status INTO s FROM sales WHERE id = '5a000000-0000-4000-8000-0000000000a1';
   IF s <> 'completed' THEN RAISE EXCEPTION 'FALHOU: status mudou sem o cancelamento oficial (%)', s; END IF;

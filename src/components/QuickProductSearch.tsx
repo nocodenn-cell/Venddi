@@ -3,6 +3,7 @@ import { Input } from '@/components/ui'
 import { Search, Package, X } from 'lucide-react'
 import { getProducts } from '@/lib/api/products'
 import type { Product } from '@/lib/api/products'
+import { findExactProduct } from '@/lib/pdvHelpers'
 
 interface QuickProductSearchProps {
   onProductSelect: (product: Product) => void
@@ -55,7 +56,41 @@ export function QuickProductSearch({
     return () => clearTimeout(timeoutId)
   }, [query])
 
+  // Leitor de código de barras: digita o código e envia Enter. Busca na hora (sem esperar o
+  // debounce), adiciona o produto de código exato, ou um único resultado, e mostra a lista
+  // quando há ambiguidade ou nada encontrado.
+  const resolveCodeAndSelect = async (code: string) => {
+    const term = code.trim()
+    if (term.length < 2) return
+    setIsSearching(true)
+    try {
+      const result = await getProducts({ search: term }, { page: 1, pageSize: 20 })
+      const exact = findExactProduct(result.data, term)
+      if (exact) {
+        handleSelect(exact)
+      } else if (result.data.length === 1) {
+        handleSelect(result.data[0])
+      } else {
+        setResults(result.data)
+        setShowResults(true)
+        setSelectedIndex(-1)
+      }
+    } catch (error) {
+      console.error('Error resolving product code:', error)
+      setResults([])
+      setShowResults(true)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !(showResults && selectedIndex >= 0)) {
+      e.preventDefault()
+      void resolveCodeAndSelect(query)
+      return
+    }
+
     if (!showResults || results.length === 0) return
 
     // Seta para baixo
