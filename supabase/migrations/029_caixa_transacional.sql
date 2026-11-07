@@ -932,8 +932,11 @@ BEGIN
   END IF;
 
   -- Caixa da venda: trava antes dos produtos (venda -> caixa -> produtos) e recusa caixa fechado.
-  -- O estorno não pode alterar o total de um caixa que já foi fechado.
-  IF v_sale.cash_register_id IS NOT NULL THEN
+  -- O estorno não pode alterar o total de um caixa que já foi fechado. Só vendas com dinheiro
+  -- mexem no caixa: venda só no cartão/PIX pode ser cancelada com o caixa fechado.
+  IF v_sale.cash_register_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM payments pm WHERE pm.sale_id = p_sale_id AND pm.method = 'cash'
+  ) THEN
     SELECT status INTO v_cash_status
     FROM cash_registers
     WHERE id = v_sale.cash_register_id
