@@ -129,3 +129,12 @@ Observação: a primeira execução de concorrência falhou por sobreposição d
 **Não iniciar a homologação das migrations 026 a 030 diretamente no remoto.** A evidência mostra que o histórico de migrations do remoto não reflete o schema real. Primeiro: restaurar em ambiente isolado, reconciliar, testar e só então decidir sobre produção.
 
 Risco de produção que não depende da homologação: as políticas de escrita direta (seção 3.4) estão ativas agora. Vale decidir sobre um hotfix mínimo o quanto antes.
+
+## Atualização 2026-11-14: projeto remoto pausado (bloqueia a reconciliação)
+
+- Autorização recebida: reconciliação do banco remoto. Escopo permitido: leitura (dump e comparação) e restauração num ambiente isolado com dados anonimizados. Escrita no remoto e criação de projeto pago continuam fora do escopo sem nova autorização.
+- `supabase projects list` (CLI, somente leitura) mostra o projeto `jcvblxyzceszzehehyjd` (Venddi) com status **INACTIVE**. A auditoria de 2026-11-04 registrava ACTIVE_HEALTHY.
+- `supabase migration list` e `supabase link` retornaram `ProjectPausedError`: "An admin must unpause it from the Supabase dashboard".
+- Não houve reativação, restauração nem escrita. Nenhum dump foi feito.
+- Efeito colateral a verificar com urgência: o backend de produção (`venddipdv.com`) depende deste projeto. Se estiver pausado, o app está fora do ar. Causa provável: pausa automática por inatividade em plano Free (o PROXIMOS_PASSOS já registra o projeto no plano Free).
+- Próximo passo, após reativação pelo dono: `supabase migration list --linked` (leitura), dump de schema (leitura, fora do repositório), restauração num ambiente local anonimizado, e só então decisão sobre o remoto.
