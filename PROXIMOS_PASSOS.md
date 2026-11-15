@@ -2,37 +2,47 @@
 
 ## P0 — Quebrado/travado
 
-- Reconciliar o drift do remoto (auditoria adc8085: 019–021 registradas sem tabelas/triggers) antes de aplicar 022→032. Só com backup e autorização do proprietário.
-- Emissão fiscal: confirmar com o contador a regra de modelo (NFC-e 65 ou NF-e 55 por Ajuste SINIEF 23/2026) e a venda a CNPJ; depois Edge Function com token em secret. Ver docs/GO_LIVE_02.md, seção 3.
-- E2E de interface com stack Supabase completo (hoje a validação é de banco, em Postgres local).
-- Remover o caminho morto de emissão no cliente (focusNFeProvider.ts, fiscalService.ts) quando a Edge Function existir.
-- Migrations 026–030 ainda não estão no projeto remoto de homologação. Aplicar só com backup e pelo roteiro de `docs/PROCEDIMENTO_MIGRATIONS_HOMOLOGACAO.md`.
+- Projeto remoto `jcvblxyzceszzehehyjd` está INACTIVE (pausado, visto em 2026-11-14). Bloqueia a reconciliação do schema e pode deixar o app de produção fora do ar. Reativação é ação do dono no painel do Supabase.
+- Main não monta banco do zero: migration 022 falha (GRANT sem assinatura ambígua, `cancel_sale_with_reversal`); a go-live corrige com assinatura explícita em 022/026/028/029 e com a 033.
+- Prefixos duplicados nas migrations da main (019, 020, 021) e também na go-live (019, 020, 021 com dois arquivos cada). O Supabase CLI recusa. Renomear sem mexer no histórico remoto exige ler `supabase_migrations.schema_migrations` antes (ainda não feito).
+- Falta `supabase/config.toml` na main e na go-live.
+- Remoto com drift (ver `docs/AUDITORIA_REMOTA_HOMOLOGACAO.md`): 019–021 registradas sem efeito no schema; políticas de escrita direta em sales/caixa ativas em produção.
+- Tela de caixa da main grava `cash_registers.operator_id`, coluna inexistente: "Erro ao abrir caixa". A go-live resolve pela 029 (RPCs `abrir_caixa`, `fechar_caixa`) e pela 030 (fecha gravações diretas).
 
 ## P1 — Falta para lançar (MVP)
 
-- Executar o roteiro de caixa (`docs/CAIXA_TRANSACIONAL.md`, seção 5) no projeto remoto de homologação.
-- Teste de interface para duplo clique em sangria e para dois caixas simultâneos (CX-29, CX-30).
-- Produtos fracionados: quantidade é inteira no banco e na tela (PDV-04). Decidir se entra no escopo do MVP.
-- Gravar valor recebido e troco em `payments`, se o troco precisar de auditoria (ver `docs/CAIXA_TRANSACIONAL.md`, seção 8).
-- Homologar a migration 019 (inventário físico) e executar o roteiro de `docs/INVENTARIO_FISICO.md`, seção 5.
-- E2E automatizado de navegador (Playwright) para inventário e caixa.
-- Paginação e busca no servidor para inventários com catálogo grande.
+- Decidir o caminho da go-live (`integracao/go-live-02`, 30 commits sobre a main, inclui inventário, painel, fiscal e caixa transacional): PR único grande ou PRs menores.
+- Teste manual pela interface no banco local (cadastro de conta, abrir caixa, venda, cancelamento): não feito. O SQL cobre as RPCs, não a tela.
+- Decidir o PR da branch `fix/migrations-do-zero` (ainda sem push).
+- Rodar typecheck, testes e build do app apontando para o banco local.
+- Teste manual no banco local: cadastro de conta, abrir caixa, venda e cancelamento de venda.
+- SMTP próprio com domínio validado e teste real de entrega (caixa de entrada, não spam).
+- Backup e restauração testados; projeto de produção no plano Pro (o projeto atual está no plano Free).
+- Revisão jurídica dos termos e da política de privacidade (LGPD).
+- Cobrança manual do piloto combinada por escrito (não há integração de pagamento).
+- Autorização do gerente para desconto acima de 5% (hoje o banco recusa).
+- Texto de trial de 15 dias conferido na landing nova (`landing/`, Next.js).
+- Validar em uso real o convite de funcionário (convidar, abrir o link, definir senha, entrar).
+- Confirmar `APP_URL` = `https://venddipdv.com` e as Redirect URLs no painel do Supabase.
+- Publicar o app em `venddipdv.com`: `/convite` respondia 404.
+- Verificar a checagem pendente do PR #6 (estado UNSTABLE no GitHub).
 
 ## P2 — Melhoria
 
-- Histórico de inventários com autor e ajustes detalhados na própria tela.
-- Registrar vendas também em `cash_operation_log` (hoje a auditoria de venda fica em `sales`).
-- Mostrar o nome do operador ao recarregar o caixa (o banco não traz o nome; a tela usa o usuário logado).
+- README assina "Proprietário — Mature Code"; o nome correto é NatureCode (linha 132).
+- Sangrias e suprimentos gravam `balance_after = 0` no cliente; o histórico de saldo fica incompleto (o fechamento não é afetado). Resolvido na go-live pela 029, mas confirmar após o merge.
+- Cadastro de funcionário sem convite (hoje o convite é o único caminho).
+- Retomar BI (módulo escolhido para a próxima sprint depois do caixa).
 
 ## Feito
 
-- 2026-11-05 — Integração PR #20 + PR #21 em `integracao/go-live-02`; cadeia de migrations 001→032 sobe num banco limpo; cancelamento pela tela corrigido; golden flow e reenvio concorrente testados; camada fiscal com proteção de credenciais (032).
-- 2026-11-03 — Tela de Vendas com histórico e cancelamento pela interface (dono, admin e gerente); corrigido o operador fixo e a mensagem genérica da API de cancelamento
-- 2026-11-03 — Validação operacional do PDV e do caixa: desconto, pagamento dividido, troco e chave de venda corrigidos; estorno com sinal negativo; detalhamento por meio de pagamento; jornada completa pela interface conferida no banco (migration 030 e testes de integridade)
-- 2026-11-03 — Segurança: políticas de escrita direta em vendas, pagamentos, itens, auditoria e caixa removidas (migration 030)
-- 2026-11-03 — PDV: grade de produtos carrega produtos reais do banco (antes era lista fixa com ids inválidos); venda pela grade verificada no banco (CX-31)
-- 2026-11-03 — Caixa transacional: RPCs de abertura, sangria, suprimento e fechamento com idempotência, log imutável, trava de status e de caixa fechado (migration 029); testes SQL, concorrência e E2E
-- 2026-11-03 — Venda e estorno travam o caixa antes dos produtos (ordem de travas, migrations 028 e 029)
-- 2026-11-03 — Inventário físico: migration 019 (contagem, conclusão idempotente, ajuste auditável, RLS), tela Estoque e testes unit, banco e concorrência (#16)
-- 2026-11-03 — Venda e estoque: guarda de saldo, `FOR NO KEY UPDATE` na numeração, isolamento e permissões de venda e cancelamento (migrations 020–026)
-- 2026-11-03 — Painel com métricas reais e filtro de estoque baixo no servidor (migrations 023–025)
+- 2026-11-14 — `supabase db reset` aplicou as 35 migrations do zero no Supabase local, sem erro (branch `fix/migrations-do-zero`, sem push). Os 24 testes SQL passaram; typecheck, 139 testes unitários e build OK.
+- 2026-11-14 — Comparação main × `integracao/go-live-02` (somente leitura): go-live contém a main e corrige GRANT e operator_id, mas não corrige prefixos duplicados nem config.toml.
+- 2026-10-21 — Migration 021 aplicada no Supabase e Edge Function `invite-employee` publicada (versão 4).
+- 2026-10-21 — Sprint do caixa: fechamento por caixa/período e cancelamento de venda com auditoria (PR #8).
+- 2026-10-21 — Convites de funcionários: reenvio, cancelamento, status e bloqueio de escalada (PR #7).
+- 2026-10-21 — Central de Funcionários com comissão e desconto de 5% em dinheiro no PDV.
+- 2026-10-21 — PDV fechado por padrão; início é a tela pós-login.
+- 2026-10-21 — Trial de 15 dias com expiração no banco e no login; entrada de estoque.
+- 2026-10-21 — Correções de segurança apontadas nos PRs #6 e #8 (migrations 014 a 021).
+- 2026-10-29 — Merge de `main` resolvido nos PRs #6, #7 e #8 (landing antiga removida no SPA).
