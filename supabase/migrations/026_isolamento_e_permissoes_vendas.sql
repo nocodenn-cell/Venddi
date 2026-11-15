@@ -599,7 +599,7 @@ EXCEPTION
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal TO authenticated;
+GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal(UUID, UUID, UUID, TEXT) TO authenticated;
 
 -- Trial: só a própria empresa da sessão (get_user_company_id). Para trial vencido a empresa
 -- não resolve (migration 016), então o resultado é "inativo" / 0 dias.
