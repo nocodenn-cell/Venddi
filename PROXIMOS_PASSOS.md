@@ -34,6 +34,7 @@
 
 ## Feito
 
+- 2026-11-05 — Merge com `main` resolvido (`cancel_sale_with_reversal` com 2 argumentos) e migrations 022–028 aplicadas no Supabase.
 - 2026-11-03 — Inventário físico: migration 019 (contagem, conclusão idempotente, ajuste auditável, RLS), tela Estoque e testes unit/banco/concorrência (#16)
 - 2026-10-29 — Merge de `main` resolvido nos PRs #6, #7 e #8 (landing antiga removida no SPA).
 - 2026-10-21 — Migration 021 aplicada no Supabase e Edge Function `invite-employee` publicada (versão 4).

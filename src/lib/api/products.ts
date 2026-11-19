@@ -186,8 +186,11 @@ export async function getProducts(
   }
   
   try {
-    let query = supabase.from('products').select('*', { count: 'exact' })
-    
+    // Estoque baixo: a view produtos_estoque_baixo (migration 025) faz o filtro no banco,
+    // com paginação e RLS normais.
+    const table = filters.lowStock ? 'produtos_estoque_baixo' : 'products'
+    let query = supabase.from(table).select('*', { count: 'exact' })
+
     // Apply filters
     if (filters.search) {
       query = query.or(`name.ilike.%${filters.search}%,sku.ilike.%${filters.search}%,barcode.ilike.%${filters.search}%`)
@@ -200,11 +203,6 @@ export async function getProducts(
     if (filters.isActive !== undefined) {
       query = query.eq('is_active', filters.isActive)
     }
-    
-    if (filters.lowStock) {
-      query = query.lte('stock_quantity', supabase.rpc('min_stock')) // This would need a custom RPC
-    }
-    
     // Pagination
     const from = (pagination.page - 1) * pagination.pageSize
     const to = from + pagination.pageSize - 1
