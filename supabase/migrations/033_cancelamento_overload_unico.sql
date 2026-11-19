@@ -29,6 +29,24 @@ BEGIN
     RAISE EXCEPTION 'Usuário sem acesso a uma empresa ativa' USING ERRCODE = '42501';
   END IF;
 
+  -- Mesmas recusas e mensagens da forma de 2 argumentos da migration 021, na mesma ordem.
+  IF get_user_role() NOT IN ('owner', 'admin', 'manager') THEN
+    RAISE EXCEPTION 'Sem permissão para cancelar vendas' USING ERRCODE = '42501';
+  END IF;
+  IF char_length(btrim(COALESCE(p_reason, ''))) < 5 THEN
+    RAISE EXCEPTION 'Informe o motivo do cancelamento (mínimo 5 caracteres)';
+  END IF;
+  -- Venda de outra empresa é tratada como inexistente.
+  IF NOT EXISTS (SELECT 1 FROM sales WHERE id = p_sale_id AND company_id = v_company) THEN
+    RAISE EXCEPTION 'Venda não encontrada';
+  END IF;
+  IF EXISTS (SELECT 1 FROM sales WHERE id = p_sale_id AND status = 'cancelled') THEN
+    RAISE EXCEPTION 'Venda já cancelada';
+  END IF;
+  IF EXISTS (SELECT 1 FROM sales WHERE id = p_sale_id AND status <> 'completed') THEN
+    RAISE EXCEPTION 'Só é possível cancelar vendas concluídas';
+  END IF;
+
   v_result := cancel_sale_with_reversal(p_sale_id, v_company, v_operator, p_reason);
 
   -- A forma de 4 argumentos devolve {"success": false} em vez de lançar erro. Esta forma mantém
