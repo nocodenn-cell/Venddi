@@ -8,12 +8,17 @@ empresa é `FOR NO KEY UPDATE` (não conflita com a checagem de chave estrangeir
 
 | Operação | Ordem |
 |---|---|
-| Venda (`create_atomic_sale`) | 1. `companies` `FOR NO KEY UPDATE` (serializa numeração e vendas da empresa); 2. `products` por `product_id` crescente (UPDATE); 3. inserts (sales, sale_items, payments, cash_movements), com `KEY SHARE` nas chaves estrangeiras |
-| Estorno (`cancel_sale_with_reversal`) | 1. `sales` (UPDATE); 2. `products` por `product_id` crescente; 3. insert em cash_movements |
+| Venda (`create_atomic_sale`) | 1. `companies` `FOR NO KEY UPDATE` (serializa numeração e vendas da empresa); 2. `cash_registers` do caixa `FOR NO KEY UPDATE`, com revalidação do status (migration 029); 3. `products` por `product_id` crescente (UPDATE); 4. inserts (sales, sale_items, payments, cash_movements), com `KEY SHARE` nas chaves estrangeiras |
+| Estorno (`cancel_sale_with_reversal`) | 1. `sales` (UPDATE); 2. `cash_registers` do caixa da venda `FOR NO KEY UPDATE`, recusa caixa fechado (029); 3. `products` por `product_id` crescente; 4. insert em cash_movements |
+| Abrir caixa (`abrir_caixa`) | 1. `pg_advisory_xact_lock` por empresa e chave de idempotência; 2. insert em cash_registers (índice único de caixa aberto por operador); 3. insert em cash_operation_log |
+| Sangria / suprimento (`registrar_movimento_caixa`) | 1. advisory lock por chave; 2. `cash_registers` `FOR NO KEY UPDATE`; 3. insert em cash_movements, update de totais, insert em cash_operation_log |
+| Fechar caixa (`fechar_caixa`) | 1. advisory lock por chave; 2. `cash_registers` `FOR NO KEY UPDATE`; 3. update do caixa, insert em cash_operation_log. Não trava empresa nem produtos |
 | Conclusão de inventário (`concluir_inventario`) | 1. `inventory_counts` `FOR UPDATE`; 2. `products` por `product_id` crescente; 3. inserts em stock_movements |
 | Registrar contagem (`registrar_contagem_item`) | 1. `inventory_counts` `FOR SHARE`; 2. `products` `FOR UPDATE` (um produto) |
 | Entrada de estoque (`registrar_entrada_estoque`) | 1. `products` (UPDATE, um produto); 2. insert em stock_movements, com `KEY SHARE` na empresa e no produto |
 | Iniciar inventário | Inserts em inventory_counts e items (`KEY SHARE` nas chaves estrangeiras) |
+
+Regra de caixa (migration 029): nenhuma operação trava produtos e depois o caixa. Venda e estorno travam o caixa antes dos produtos. O fechamento e a sangria só travam o caixa.
 
 ## 2. Análise dos pares (qualquer par que trave o mesmo recurso)
 
@@ -27,6 +32,10 @@ empresa é `FOR NO KEY UPDATE` (não conflita com a checagem de chave estrangeir
 | Conclusão × Entrada | Conclusão trava produtos em ordem; a entrada trava um produto e depois só pede `KEY SHARE` (livre) | Sem ciclo |
 | Registrar contagem × Conclusão | Registrar pede `FOR SHARE` no inventário; conclusão pede `FOR UPDATE` nele. Quem chega primeiro bloqueia o outro antes de travar produtos | Sem ciclo |
 | Entrada × Entrada (mesmo produto) | Um produto por transação, serializam | Sem ciclo |
+| Venda × Fechamento | Venda trava empresa, depois caixa, depois produtos. Fechamento trava só o caixa. Quem chega primeiro serializa o outro no caixa; o fechamento nunca espera produto | Sem ciclo. Medido: 15 rodadas, invariante OK (`concorrencia_caixa.sh`, cenário C) |
+| Estorno × Fechamento | Estorno trava venda, caixa, produtos. Fechamento trava só o caixa | Sem ciclo. Medido: 15 rodadas (cenário E) |
+| Venda × Estorno | Ambos travam o caixa antes dos produtos | Sem ciclo |
+| Sangria × Fechamento | Ambos travam só o caixa | Sem ciclo. Medido: 15 rodadas (cenário D) |
 
 ## 3. O que foi reproduzido antes desta correção
 

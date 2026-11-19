@@ -59,11 +59,16 @@ BEGIN
   RESET ROLE;
   IF n <> 0 THEN RAISE EXCEPTION 'FALHOU 2: vendedor alterou o caixa (% linhas)', n; END IF;
 
-  -- 3. Caixa registra suprimento (INSERT permitido)
+  -- 3. Nem o caixa grava movimento direto: só pelas RPCs (migration 030)
   PERFORM pg_temp.as_auth(CAIXA);
-  INSERT INTO cash_movements (cash_register_id, company_id, user_id, type, amount, balance_after)
-  VALUES (CR, CO, U_CAIXA, 'withdrawal', 5, 0);
-  RESET ROLE;
+  BEGIN
+    INSERT INTO cash_movements (cash_register_id, company_id, user_id, type, amount, balance_after)
+    VALUES (CR, CO, U_CAIXA, 'withdrawal', 5, 0);
+    RESET ROLE;
+    RAISE EXCEPTION 'FALHOU 3: caixa gravou movimento direto';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RESET ROLE;
+  END;
 
   -- 4. Razão imutável: ninguém atualiza nem apaga movimento (0 linhas, sem erro)
   PERFORM pg_temp.as_auth(OWNER);
@@ -75,15 +80,12 @@ BEGIN
   IF n <> 0 THEN RAISE EXCEPTION 'FALHOU 4: movimento apagado (% linhas)', n; END IF;
   RESET ROLE;
 
-  -- 5. Caixa não altera o valor inicial (trigger); gerente pode
+  -- 5. Caixa não altera o valor inicial (sem política de UPDATE: 0 linhas); gerente pode
   PERFORM pg_temp.as_auth(CAIXA);
-  BEGIN
-    UPDATE cash_registers SET initial_amount = 0 WHERE id = CR;
-    RESET ROLE;
-    RAISE EXCEPTION 'FALHOU 5: caixa alterou valor inicial';
-  EXCEPTION WHEN insufficient_privilege THEN
-    RESET ROLE;
-  END;
+  UPDATE cash_registers SET initial_amount = 0 WHERE id = CR;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RESET ROLE;
+  IF n <> 0 THEN RAISE EXCEPTION 'FALHOU 5: caixa alterou valor inicial (% linhas)', n; END IF;
   SELECT initial_amount INTO v_inicial FROM cash_registers WHERE id = CR;
   IF v_inicial <> 100 THEN RAISE EXCEPTION 'FALHOU 5: valor inicial mudou para %', v_inicial; END IF;
 
@@ -93,12 +95,18 @@ BEGIN
   SELECT initial_amount INTO v_inicial FROM cash_registers WHERE id = CR;
   IF v_inicial <> 120 THEN RAISE EXCEPTION 'FALHOU 5b: gerente não conseguiu alterar valor inicial'; END IF;
 
-  -- 6. Caixa fecha o próprio caixa (UPDATE de status permitido)
+  -- 6. Desde a migration 029, o status só muda pela RPC fechar_caixa: UPDATE direto é recusado
   PERFORM pg_temp.as_auth(CAIXA);
   UPDATE cash_registers SET status = 'closed' WHERE id = CR;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RESET ROLE;
+  IF n <> 0 THEN RAISE EXCEPTION 'FALHOU 6: caixa fechou por UPDATE direto (% linhas)', n; END IF;
+  -- Fechamento pela RPC: valor contado igual ao saldo esperado (120, sem movimentos registrados pela RPC)
+  PERFORM pg_temp.as_auth(CAIXA);
+  PERFORM fechar_caixa(CR, 120, 'perm-fechar-1', NULL);
   RESET ROLE;
   SELECT status INTO v_status FROM cash_registers WHERE id = CR;
-  IF v_status <> 'closed' THEN RAISE EXCEPTION 'FALHOU 6: caixa não fechou (status %)', v_status; END IF;
+  IF v_status <> 'closed' THEN RAISE EXCEPTION 'FALHOU 6: caixa não fechou pela RPC (status %)', v_status; END IF;
 
   -- 7. Ninguém apaga caixa
   PERFORM pg_temp.as_auth(OWNER);

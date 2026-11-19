@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Badge, Modal } from '@/components/ui'
 import { Search, Plus, Minus, Trash2, CreditCard, Banknote, QrCode, ShoppingBag, AlertCircle, FileText, Keyboard } from 'lucide-react'
 import { createSale } from '@/lib/api/sales'
+import { getProducts } from '@/lib/api/products'
 import { roundToCents } from '@/lib/schemas/sales'
 import { getOpenCashRegister } from '@/lib/api/cashRegister'
 import { emitNfceForSale } from '@/lib/api/fiscal'
@@ -37,6 +38,10 @@ function PDVSalesScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
   const [discountPercent, setDiscountPercent] = useState('')
+  const [paymentAmountInput, setPaymentAmountInput] = useState('')
+  const [cashReceivedInput, setCashReceivedInput] = useState('')
+  // Chave da tentativa de venda: reaproveitada só para o mesmo carrinho e pagamento (nova tentativa não duplica).
+  const saleAttempt = useRef<{ signature: string; key: string } | null>(null)
   const [lastSale, setLastSale] = useState<any>(null)
   const [fiscalStatus, setFiscalStatus] = useState<'idle' | 'emitting' | 'success' | 'error'>('idle')
   const [fiscalMessage, setFiscalMessage] = useState<string>('')
@@ -97,14 +102,16 @@ function PDVSalesScreen() {
     checkCashRegister()
   }, [user])
 
-  // Mock products
-  const products = [
-    { id: '1', name: 'Camiseta Básica', sku: 'CAM-001', price: 49.90 },
-    { id: '2', name: 'Calça Jeans', sku: 'CAL-002', price: 129.90 },
-    { id: '3', name: 'Tênis Esportivo', sku: 'TEN-003', price: 199.90 },
-    { id: '4', name: 'Boné Trucker', sku: 'BON-004', price: 39.90 },
-    { id: '5', name: 'Meia Esportiva', sku: 'MEI-005', price: 19.90 },
-  ]
+  // Produtos reais da empresa: os ids são os mesmos da busca rápida e da venda (create_atomic_sale)
+  const [products, setProducts] = useState<Array<{ id: string; name: string; sku: string; price: number }>>([])
+
+  useEffect(() => {
+    getProducts({ isActive: true }, { page: 1, pageSize: 100 })
+      .then((result) =>
+        setProducts(result.data.map((p) => ({ id: p.id, name: p.name, sku: p.sku, price: p.sellPrice })))
+      )
+      .catch((err) => setError(err instanceof Error ? err.message : 'Erro ao carregar produtos'))
+  }, [])
 
   const addToCart = (product: typeof products[0]) => {
     const existingItem = cart.find(item => item.id === product.id)
@@ -142,6 +149,47 @@ function PDVSalesScreen() {
   const discountValue = discountInvalid ? 0 : roundToCents(total * discountPct / 100)
   const amountDue = roundToCents(total - discountValue)
   const hasNonCashPayment = payments.some(p => p.method !== 'cash')
+  const paidTotal = roundToCents(payments.reduce((sum, p) => sum + p.amount, 0))
+  const changeDue = roundToCents(payments.reduce((sum, p) => sum + (p.changeAmount ?? 0), 0))
+
+  const keyForSale = (signature: string): string => {
+    const current = saleAttempt.current
+    if (current && current.signature === signature) return current.key
+    const next = { signature, key: uuidv4() }
+    saleAttempt.current = next
+    return next.key
+  }
+
+  // Adiciona uma forma de pagamento. Sem valor digitado, cobra o restante; com valor, cobra no máximo o restante.
+  // Em dinheiro, o troco é o valor recebido menos o valor cobrado nesta forma.
+  const addPayment = (method: Payment['method']) => {
+    const remaining = roundToCents(amountDue - paidTotal)
+    if (remaining <= 0) return
+
+    const typed = paymentAmountInput.trim() === '' ? remaining : roundToCents(Number(paymentAmountInput.replace(',', '.')))
+    if (!Number.isFinite(typed) || typed <= 0) {
+      setError('Valor da forma de pagamento inválido')
+      return
+    }
+    if (typed > remaining) {
+      setError(`Valor maior que o restante (R$ ${remaining.toFixed(2)})`)
+      return
+    }
+
+    if (method === 'cash') {
+      const received = cashReceivedInput.trim() === '' ? typed : roundToCents(Number(cashReceivedInput.replace(',', '.')))
+      if (!Number.isFinite(received) || received < typed) {
+        setError('Valor recebido menor que o valor cobrado em dinheiro')
+        return
+      }
+      setPayments([...payments, { method, amount: typed, receivedAmount: received, changeAmount: roundToCents(received - typed) }])
+      setCashReceivedInput('')
+    } else {
+      setPayments([...payments, { method, amount: typed }])
+    }
+    setPaymentAmountInput('')
+    setError(null)
+  }
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -350,16 +398,29 @@ function PDVSalesScreen() {
           </div>
 
           <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="Valor desta forma (vazio = restante)"
+                type="number"
+                step="0.01"
+                value={paymentAmountInput}
+                onChange={(e) => setPaymentAmountInput(e.target.value)}
+              />
+              <Input
+                label="Valor recebido em dinheiro (opcional)"
+                type="number"
+                step="0.01"
+                value={cashReceivedInput}
+                onChange={(e) => setCashReceivedInput(e.target.value)}
+              />
+            </div>
             <h4 className="font-semibold text-sm">Formas de Pagamento</h4>
             
             <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
-                  if (remaining > 0) {
-                    setPayments([...payments, { method: 'cash', amount: remaining, receivedAmount: remaining, changeAmount: 0 }])
-                  }
+                  addPayment('cash')
                 }}
                 disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue}
               >
@@ -370,10 +431,7 @@ function PDVSalesScreen() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
-                  if (remaining > 0) {
-                    setPayments([...payments, { method: 'credit_card', amount: remaining }])
-                  }
+                  addPayment('credit_card')
                 }}
                 disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue || discountPct > 0}
               >
@@ -384,10 +442,7 @@ function PDVSalesScreen() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
-                  if (remaining > 0) {
-                    setPayments([...payments, { method: 'debit_card', amount: remaining }])
-                  }
+                  addPayment('debit_card')
                 }}
                 disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue || discountPct > 0}
               >
@@ -398,10 +453,7 @@ function PDVSalesScreen() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  const remaining = amountDue - payments.reduce((sum, p) => sum + p.amount, 0)
-                  if (remaining > 0) {
-                    setPayments([...payments, { method: 'pix', amount: remaining }])
-                  }
+                  addPayment('pix')
                 }}
                 disabled={payments.reduce((sum, p) => sum + p.amount, 0) >= amountDue || discountPct > 0}
               >
@@ -441,15 +493,15 @@ function PDVSalesScreen() {
                 </span>
               </div>
               
-              {payments.reduce((sum, p) => sum + p.amount, 0) < total && (
+              {amountDue - paidTotal > 0.005 && (
                 <div className="text-sm text-red-600">
-                  Faltam R$ {(total - payments.reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}
+                  Faltam R$ {(amountDue - paidTotal).toFixed(2)}
                 </div>
               )}
               
-              {payments.reduce((sum, p) => sum + p.amount, 0) > total && (
+              {changeDue > 0 && (
                 <div className="text-sm text-amber-600">
-                  Troco: R$ {(payments.reduce((sum, p) => sum + p.amount, 0) - total).toFixed(2)}
+                  Troco: R$ {changeDue.toFixed(2)}
                 </div>
               )}
             </div>
@@ -492,7 +544,11 @@ function PDVSalesScreen() {
                 try {
                   // Step 1: Create sale
                   const sale = await createSale({
-                    idempotencyKey: uuidv4(),
+                    idempotencyKey: keyForSale(JSON.stringify({
+                      items: cart.map(item => [item.id, item.quantity, item.price]),
+                      payments: payments.map(p => [p.method, p.amount]),
+                      discount: discountValue,
+                    })),
                     companyId: company?.id ?? '',
                     items: cart.map(item => ({
                       productId: item.id,
@@ -517,6 +573,7 @@ function PDVSalesScreen() {
                   })
 
                   setLastSale(sale)
+                  saleAttempt.current = null
 
                   // Step 2: Fiscal emission DISABLED (Feature Flag: FISCAL_ENABLED = false)
                   // Module frozen per founder decision - will be re-enabled in future phase
@@ -552,7 +609,7 @@ function PDVSalesScreen() {
                 isProcessing ||
                 !cashRegisterId ||
                 payments.length === 0 ||
-                Math.abs(payments.reduce((sum, p) => sum + p.amount, 0) - total) > 0.01
+                Math.abs(paidTotal - amountDue) > 0.01
               }
               className="flex-1"
             >
