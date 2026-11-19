@@ -105,31 +105,34 @@ BEGIN
   IF v_stock <> 9 THEN RAISE EXCEPTION 'FALHOU: saldo após venda legítima % (esperado 9)', v_stock; END IF;
 
   -- 4. Owner da empresa B tenta cancelar venda da A (antes: cancelava)
-  PERFORM pg_temp.expect_json_fail(OWNER_B, format(
-    'SELECT cancel_sale_with_reversal(%L,%L,%L,%L)', v_sale, CO_A, U_OWNER, 'ataque'),
-    'Acesso negado: empresa diferente da sessão');
+  -- Assinatura de 2 argumentos: a empresa vem da sessão, então a venda da A não existe para a B
+  PERFORM pg_temp.expect_fail(OWNER_B, format(
+    'SELECT cancel_sale_with_reversal(%L,%L)', v_sale, 'ataque'),
+    'Venda não encontrada');
 
   -- 5. Caixa tenta cancelar venda (papel sem sales.cancel; antes o banco aceitava)
-  PERFORM pg_temp.expect_json_fail(CAIXA_A, format(
-    'SELECT cancel_sale_with_reversal(%L,%L,%L,%L)', v_sale, CO_A, U_CAIXA, 'caixa cancela'),
-    'Papel sem permissão para cancelar venda');
+  PERFORM pg_temp.expect_fail(CAIXA_A, format(
+    'SELECT cancel_sale_with_reversal(%L,%L)', v_sale, 'caixa cancela'),
+    'Sem permissão para cancelar vendas');
 
   -- 6. Gerente cancela com o próprio id como operador: permitido
   PERFORM pg_temp.as_auth(GERENTE_A);
-  r := cancel_sale_with_reversal(v_sale, CO_A, U_GERENTE, 'estorno legítimo');
+  r := cancel_sale_with_reversal(v_sale, 'estorno legítimo');
   RESET ROLE;
   IF NOT (r->>'success')::boolean THEN RAISE EXCEPTION 'FALHOU: gerente não conseguiu cancelar: %', r; END IF;
   SELECT stock_quantity INTO v_stock FROM products WHERE id = P;
   IF v_stock <> 10 THEN RAISE EXCEPTION 'FALHOU: saldo após estorno % (esperado 10)', v_stock; END IF;
 
-  -- 7. Gerente tenta cancelar informando outro operador como autor
-  PERFORM pg_temp.as_auth(GERENTE_A);
+  -- 7. Venda do caixa A, cancelada pelo gerente (o autor é sempre o usuário da sessão)
+  PERFORM pg_temp.as_auth(CAIXA_A);
   r := create_atomic_sale(CO_A, U_CAIXA, CR, ITEM::jsonb, PAY::jsonb);
   RESET ROLE;
+  IF NOT (r->>'success')::boolean THEN RAISE EXCEPTION 'FALHOU: venda do caixa recusada: %', r; END IF;
   v_sale := (r->>'sale_id')::UUID;
-  PERFORM pg_temp.expect_json_fail(GERENTE_A, format(
-    'SELECT cancel_sale_with_reversal(%L,%L,%L,%L)', v_sale, CO_A, U_CAIXA, 'autor falso'),
-    'Operador deve ser o usuário logado');
+  PERFORM pg_temp.as_auth(GERENTE_A);
+  r := cancel_sale_with_reversal(v_sale, 'cancelado pelo gerente');
+  RESET ROLE;
+  IF NOT (r->>'success')::boolean THEN RAISE EXCEPTION 'FALHOU: gerente não conseguiu cancelar a própria venda: %', r; END IF;
 
   -- 8. Trial: owner B não consegue ler o trial da empresa A (nem o próprio, se pedir o id da A)
   PERFORM pg_temp.as_auth(OWNER_B);

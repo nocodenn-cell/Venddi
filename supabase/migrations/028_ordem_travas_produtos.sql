@@ -9,6 +9,8 @@
 -- Mantém FOR NO KEY UPDATE na empresa (migration 021/026), que não conflita com a checagem de chave estrangeira.
 --
 -- Corpo das funções igual à migration 026, exceto as duas linhas de ordenação.
+-- cancel_sale_with_reversal volta a ser a assinatura de 2 argumentos (p_sale_id, p_reason),
+-- com empresa, papel e operador vindos da sessão (migration 021). A versão de 4 argumentos da main foi descartada.
 
 CREATE OR REPLACE FUNCTION create_atomic_sale(
   p_company_id UUID,
@@ -413,8 +415,6 @@ GRANT EXECUTE ON FUNCTION create_atomic_sale TO authenticated;
 
 CREATE OR REPLACE FUNCTION cancel_sale_with_reversal(
   p_sale_id UUID,
-  p_company_id UUID,
-  p_operator_id UUID,
   p_reason TEXT
 )
 RETURNS JSONB
@@ -423,179 +423,121 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_sale RECORD;
+  v_company UUID := get_user_company_id();
+  v_role user_role := get_user_role();
+  v_user UUID := get_user_id();
+  v_sale sales%ROWTYPE;
   v_item RECORD;
-  v_payment RECORD;
-  v_cash_amount DECIMAL(10,2) := 0;
-  v_operator_company UUID;
+  v_cash NUMERIC := 0;
+  v_reg cash_registers%ROWTYPE;
+  v_movement_id UUID;
 BEGIN
-  -- SEGURANÇA: empresa e papel vêm da sessão (migration 026).
-  IF p_company_id IS DISTINCT FROM get_user_company_id() THEN
-    RAISE EXCEPTION 'Acesso negado: empresa diferente da sessão' USING ERRCODE = '42501';
+  IF v_company IS NULL OR v_user IS NULL THEN
+    RAISE EXCEPTION 'Usuário sem acesso a uma empresa ativa' USING ERRCODE = '42501';
   END IF;
-  IF get_user_role() NOT IN ('owner', 'admin', 'manager') THEN
-    RAISE EXCEPTION 'Papel sem permissão para cancelar venda' USING ERRCODE = '42501';
+
+  IF v_role NOT IN ('owner', 'admin', 'manager') THEN
+    RAISE EXCEPTION 'Sem permissão para cancelar vendas' USING ERRCODE = '42501';
   END IF;
-  IF p_operator_id IS DISTINCT FROM (SELECT id FROM users WHERE auth_id = auth.uid()) THEN
-    RAISE EXCEPTION 'Operador deve ser o usuário logado' USING ERRCODE = '42501';
+
+  IF p_reason IS NULL OR length(trim(p_reason)) < 5 THEN
+    RAISE EXCEPTION 'Informe o motivo do cancelamento (mínimo 5 caracteres)';
   END IF;
-  -- SECURITY: Validate operator belongs to company
-  SELECT company_id INTO v_operator_company
-  FROM users
-  WHERE id = p_operator_id;
-  
-  IF v_operator_company IS NULL OR v_operator_company != p_company_id THEN
-    RAISE EXCEPTION 'Operator does not belong to company';
+
+  SELECT * INTO v_sale FROM sales WHERE id = p_sale_id AND company_id = v_company FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Venda não encontrada';
   END IF;
-  
-  -- Get sale details
-  SELECT * INTO v_sale
-  FROM sales
-  WHERE id = p_sale_id
-    AND company_id = p_company_id;
-  
-  IF v_sale IS NULL THEN
-    RAISE EXCEPTION 'Sale not found';
-  END IF;
-  
+
   IF v_sale.status = 'cancelled' THEN
-    RAISE EXCEPTION 'Sale already cancelled';
+    RAISE EXCEPTION 'Venda já cancelada';
   END IF;
-  
-  -- Update sale status
+
+  IF v_sale.status <> 'completed' THEN
+    RAISE EXCEPTION 'Só é possível cancelar vendas concluídas';
+  END IF;
+
+  SELECT COALESCE(SUM(amount), 0) INTO v_cash
+  FROM payments WHERE sale_id = p_sale_id AND method = 'cash';
+
+  IF v_cash > 0 AND v_sale.cash_register_id IS NOT NULL THEN
+    SELECT * INTO v_reg FROM cash_registers WHERE id = v_sale.cash_register_id FOR UPDATE;
+    IF v_reg.status <> 'open' THEN
+      RAISE EXCEPTION 'O caixa desta venda já foi fechado. O estorno em dinheiro só pode ser feito com o caixa aberto';
+    END IF;
+  END IF;
+
+  -- Única via de cancelamento: libera a trigger que bloqueia UPDATE direto de status
+  PERFORM set_config('app.cancel_sale', 'on', true);
+
   UPDATE sales
   SET status = 'cancelled',
       cancelled_at = NOW(),
       cancellation_reason = p_reason,
+      cancelled_by = v_user,
       updated_at = NOW()
   WHERE id = p_sale_id;
-  
-  -- Reverse stock movements
-  FOR v_item IN 
-    SELECT si.*, p.stock_quantity as current_stock
-    FROM sale_items si
-    JOIN products p ON p.id = si.product_id
-    WHERE si.sale_id = p_sale_id
-    ORDER BY si.product_id
-  LOOP
-    -- Restore stock
+
+  -- Estoque: devolve as quantidades e registra o movimento
+  FOR v_item IN SELECT product_id, quantity FROM sale_items WHERE sale_id = p_sale_id ORDER BY product_id LOOP
     UPDATE products
     SET stock_quantity = stock_quantity + v_item.quantity,
         updated_at = NOW()
     WHERE id = v_item.product_id;
-    
-    -- Create stock movement reversal
+
     INSERT INTO stock_movements (
-      company_id,
-      product_id,
-      user_id,
-      type,
-      quantity,
-      reason,
-      reference_type,
-      reference_id,
-      balance_after,
-      created_at
+      company_id, product_id, user_id, type, quantity, reason,
+      reference_type, reference_id, balance_after, created_at
     )
     SELECT
-      p_company_id,
-      v_item.product_id,
-      p_operator_id,
-      'in',
-      v_item.quantity,
+      v_company, v_item.product_id, v_user, 'in', v_item.quantity,
       'Cancelamento da venda #' || v_sale.sale_number,
-      'sale_cancellation',
-      p_sale_id,
-      stock_quantity,
-      NOW()
+      'sale_cancellation', p_sale_id, stock_quantity, NOW()
     FROM products
     WHERE id = v_item.product_id;
   END LOOP;
-  
-  -- Reverse cash movements
-  SELECT COALESCE(SUM(amount), 0) INTO v_cash_amount
-  FROM payments
-  WHERE sale_id = p_sale_id
-    AND method = 'cash';
-  
-  IF v_cash_amount > 0 AND v_sale.cash_register_id IS NOT NULL THEN
-    -- Create cash reversal
+
+  -- Caixa: estorno em dinheiro, se houve pagamento em dinheiro com caixa aberto
+  IF v_cash > 0 AND v_sale.cash_register_id IS NOT NULL THEN
     INSERT INTO cash_movements (
-      cash_register_id,
-      company_id,
-      operator_id,
-      user_id,
-      type,
-      amount,
-      description,
-      reference_type,
-      reference_id,
-      balance_after,
-      created_at
-    )
-    SELECT
-      v_sale.cash_register_id,
-      p_company_id,
-      p_operator_id,
-      p_operator_id,
-      'refund',
-      v_cash_amount,
+      cash_register_id, company_id, user_id, type, amount, description,
+      reference_type, reference_id, balance_after, created_at
+    ) VALUES (
+      v_reg.id, v_company, v_user, 'refund', v_cash,
       'Estorno venda #' || v_sale.sale_number,
-      'sale_cancellation',
-      p_sale_id,
-      initial_amount + total_sales + total_deposits - total_withdrawals - v_cash_amount,
-      NOW()
-    FROM cash_registers
-    WHERE id = v_sale.cash_register_id;
-    
-    -- Update cash register
+      'sale_cancellation', p_sale_id, 0, NOW()
+    )
+    RETURNING id INTO v_movement_id;
+
+    UPDATE cash_movements
+    SET balance_after = caixa_saldo_esperado(v_reg.id)
+    WHERE id = v_movement_id;
+
     UPDATE cash_registers
-    SET total_sales = total_sales - v_cash_amount,
-        updated_at = NOW()
-    WHERE id = v_sale.cash_register_id;
+    SET total_sales = total_sales - v_cash
+    WHERE id = v_reg.id;
   END IF;
-  
-  -- Cancel financial accounts
+
+  -- Financeiro: contas a receber pendentes desta venda são canceladas
   UPDATE financial_accounts
-  SET status = 'cancelled',
-      updated_at = NOW()
-  WHERE reference_type = 'sale'
+  SET status = 'cancelled', updated_at = NOW()
+  WHERE company_id = v_company
+    AND reference_type = 'sale'
     AND reference_id = p_sale_id
     AND status = 'pending';
-  
-  -- Create audit log
+
+  -- Trilha de auditoria: quem cancelou, quando, por quê e quanto foi estornado em dinheiro
   INSERT INTO audit_logs (
-    company_id,
-    user_id,
-    action,
-    entity_type,
-    entity_id,
-    old_values,
-    new_values,
-    created_at
+    company_id, user_id, action, entity_type, entity_id, old_values, new_values, created_at
   ) VALUES (
-    p_company_id,
-    p_operator_id,
-    'sale.cancel',
-    'sale',
-    p_sale_id,
-    jsonb_build_object('status', v_sale.status),
-    jsonb_build_object('status', 'cancelled', 'reason', p_reason),
+    v_company, v_user, 'sale.cancel', 'sale', p_sale_id,
+    jsonb_build_object('status', v_sale.status, 'total', v_sale.total),
+    jsonb_build_object('status', 'cancelled', 'reason', p_reason, 'cash_refund', v_cash),
     NOW()
   );
-  
-  RETURN jsonb_build_object(
-    'success', true,
-    'sale_id', p_sale_id,
-    'message', 'Sale cancelled successfully'
-  );
-EXCEPTION
-  WHEN OTHERS THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', SQLERRM
-    );
+
+  RETURN jsonb_build_object('success', true, 'sale_id', p_sale_id, 'cash_refund', v_cash);
 END;
 $$;
-
-GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal TO authenticated;
+REVOKE ALL ON FUNCTION cancel_sale_with_reversal(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION cancel_sale_with_reversal(UUID, TEXT) TO authenticated;

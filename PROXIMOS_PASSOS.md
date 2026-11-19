@@ -27,6 +27,7 @@
 
 ## Feito
 
+- 2026-11-05 — Merge com `main` resolvido (`cancel_sale_with_reversal` com 2 argumentos) e migrations 022–028 aplicadas no Supabase.
 - 2026-10-21 — Migration 021 aplicada no Supabase e Edge Function `invite-employee` publicada (versão 4).
 - 2026-10-21 — Sprint do caixa: fechamento por caixa/período e cancelamento de venda com auditoria (PR #8).
 - 2026-10-21 — Convites de funcionários: reenvio, cancelamento, status e bloqueio de escalada (PR #7).
