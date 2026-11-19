@@ -39,10 +39,12 @@ DO $$ DECLARE r jsonb; v numeric; BEGIN
     RAISE EXCEPTION 'FALHOU: cashier alterou comissão';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   -- caixa não pode transferir venda para outro operador
-  BEGIN
-    UPDATE sales SET operator_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' WHERE id = '5a000000-0000-4000-8000-000000000001';
+  -- Sem política de UPDATE em sales (migration 030), o RLS filtra a linha: o UPDATE não
+  -- altera nada e não gera erro. O que importa é o estado final, então conferimos a linha.
+  UPDATE sales SET operator_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' WHERE id = '5a000000-0000-4000-8000-000000000001';
+  IF EXISTS (SELECT 1 FROM sales WHERE id = '5a000000-0000-4000-8000-000000000001' AND operator_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') THEN
     RAISE EXCEPTION 'FALHOU: caixa reatribuiu operador da venda';
-  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  END IF;
   RESET ROLE;
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-00000000000a',true);

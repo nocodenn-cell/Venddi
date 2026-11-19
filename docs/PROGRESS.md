@@ -164,6 +164,7 @@
 
 ## Commit History
 
+- `feat: Inventário físico (#16)` (2026-11-03) — migration 019, tela Estoque, testes unit/banco/concorrência; ver `docs/INVENTARIO_FISICO.md`
 - `feat: Fase 1 — Reposicionamento Estratégico` (2026-10-19)
   - Landing page redesenhada
   - Página de preços

@@ -8,6 +8,40 @@ let mockCashRegisters: CashRegister[] = []
 let mockCashMovements: CashMovement[] = []
 
 /**
+ * Abertura, sangria, suprimento e fechamento passam pelas RPCs da migration 029.
+ * Cada chamada leva uma chave de idempotência: repetir a mesma chave (clique duplo, falha de rede
+ * depois do commit) devolve o resultado original, sem gravar outra vez.
+ */
+
+export interface CloseCashResult {
+  cashRegisterId: string
+  expectedBalance: number
+  finalAmount: number
+  difference: number
+  replay: boolean
+}
+
+export interface CashMovementResult {
+  movementId: string
+  balanceAfter: number
+  replay: boolean
+}
+
+/** As RPCs escrevem mensagens em português para o operador; repassa a mensagem do banco. */
+function operationError(error: { message: string }, fallback: string): Error {
+  return new Error(error.message || fallback)
+}
+
+function mockExpectedBalance(cashRegister: CashRegister): number {
+  return (
+    cashRegister.initialAmount +
+    cashRegister.totalSales +
+    cashRegister.totalDeposits -
+    cashRegister.totalWithdrawals
+  )
+}
+
+/**
  * Open a new cash register
  */
 export async function openCashRegister(params: {
@@ -15,8 +49,9 @@ export async function openCashRegister(params: {
   operatorName: string
   initialAmount: number
   notes?: string
+  idempotencyKey: string
 }): Promise<CashRegister> {
-  const { operatorId, operatorName, initialAmount, notes } = params
+  const { operatorId, operatorName, initialAmount, notes, idempotencyKey } = params
 
   if (!isSupabaseConfigured || !supabase) {
     // Mock mode
@@ -27,7 +62,7 @@ export async function openCashRegister(params: {
       (cr) => cr.operatorId === operatorId && cr.status === 'open'
     )
     if (existingOpen) {
-      throw new Error('Já existe um caixa aberto para este operador')
+      throw new Error('Já existe caixa aberto para este operador')
     }
 
     const newCashRegister: CashRegister = {
@@ -48,51 +83,41 @@ export async function openCashRegister(params: {
     return newCashRegister
   }
 
-  // Real Supabase implementation
-  try {
-    const { data, error } = await supabase
-      .from('cash_registers')
-      .insert({
-        company_id: getCurrentCompanyId(),
-        operator_id: operatorId,
-        status: 'open',
-        initial_amount: initialAmount,
-        opened_at: new Date().toISOString(),
-        opening_notes: notes,
-      })
-      .select()
-      .single()
+  const { data, error } = await supabase.rpc('abrir_caixa', {
+    p_company_id: getCurrentCompanyId(),
+    p_initial_amount: initialAmount,
+    p_idempotency_key: idempotencyKey,
+    p_notes: notes ?? null,
+  })
+  if (error) throw operationError(error, 'Erro ao abrir caixa')
 
-    if (error) throw error
-
-    return {
-      id: data.id,
-      companyId: data.company_id,
-      operatorId: data.operator_id,
-      operatorName,
-      status: data.status,
-      openingDate: data.opened_at,
-      initialAmount: data.initial_amount,
-      totalSales: 0,
-      totalWithdrawals: 0,
-      totalDeposits: 0,
-      openingNotes: data.opening_notes,
-    }
-  } catch (error) {
-    console.error('Error opening cash register:', error)
-    throw new Error('Erro ao abrir caixa')
+  const result = data as { cash_register_id: string }
+  return {
+    id: result.cash_register_id,
+    companyId: getCurrentCompanyId(),
+    operatorId,
+    operatorName,
+    status: 'open',
+    openingDate: new Date().toISOString(),
+    initialAmount,
+    totalSales: 0,
+    totalWithdrawals: 0,
+    totalDeposits: 0,
+    openingNotes: notes,
   }
 }
 
 /**
- * Close a cash register
+ * Close a cash register. Compara o valor contado com o saldo esperado e grava a diferença.
+ * Divergência exige observação (a RPC recusa sem ela).
  */
 export async function closeCashRegister(params: {
   cashRegisterId: string
   finalAmount: number
   notes?: string
-}): Promise<CashRegister> {
-  const { cashRegisterId, finalAmount, notes } = params
+  idempotencyKey: string
+}): Promise<CloseCashResult> {
+  const { cashRegisterId, finalAmount, notes, idempotencyKey } = params
 
   if (!isSupabaseConfigured || !supabase) {
     // Mock mode
@@ -102,224 +127,121 @@ export async function closeCashRegister(params: {
     if (!cashRegister) throw new Error('Caixa não encontrado')
     if (cashRegister.status === 'closed') throw new Error('Caixa já está fechado')
 
+    const expectedBalance = mockExpectedBalance(cashRegister)
+    const difference = finalAmount - expectedBalance
+    if (difference !== 0 && !notes?.trim()) {
+      throw new Error(`Fechamento com divergência de R$ ${difference} exige observação`)
+    }
+
     cashRegister.status = 'closed'
     cashRegister.closingDate = new Date().toISOString()
     cashRegister.finalAmount = finalAmount
     cashRegister.closingNotes = notes
 
-    return cashRegister
+    return { cashRegisterId, expectedBalance, finalAmount, difference, replay: false }
   }
 
-  // Real Supabase implementation
-  try {
-    const { data, error } = await supabase
-      .from('cash_registers')
-      .update({
-        status: 'closed',
-        closed_at: new Date().toISOString(),
-        final_amount: finalAmount,
-        closing_notes: notes,
-      })
-      .eq('id', cashRegisterId)
-      .select()
-      .single()
+  const { data, error } = await supabase.rpc('fechar_caixa', {
+    p_cash_register_id: cashRegisterId,
+    p_final_amount: finalAmount,
+    p_idempotency_key: idempotencyKey,
+    p_notes: notes ?? null,
+  })
+  if (error) throw operationError(error, 'Erro ao fechar caixa')
 
-    if (error) throw error
+  const result = data as {
+    cash_register_id: string
+    expected_balance: number
+    final_amount: number
+    difference: number
+    replay: boolean
+  }
+  return {
+    cashRegisterId: result.cash_register_id,
+    expectedBalance: Number(result.expected_balance),
+    finalAmount: Number(result.final_amount),
+    difference: Number(result.difference),
+    replay: result.replay,
+  }
+}
 
-    return {
-      id: data.id,
-      companyId: data.company_id,
-      operatorId: data.operator_id,
-      operatorName: '',
-      status: data.status,
-      openingDate: data.opened_at,
-      closingDate: data.closed_at,
-      initialAmount: data.initial_amount,
-      finalAmount: data.final_amount,
-      totalSales: data.total_sales,
-      totalWithdrawals: data.total_withdrawals,
-      totalDeposits: data.total_deposits,
-      openingNotes: data.opening_notes,
-      closingNotes: data.closing_notes,
+async function registerMovement(params: {
+  cashRegisterId: string
+  type: 'withdrawal' | 'deposit'
+  amount: number
+  description: string
+  idempotencyKey: string
+}): Promise<CashMovementResult> {
+  const { cashRegisterId, type, amount, description, idempotencyKey } = params
+
+  if (!isSupabaseConfigured || !supabase) {
+    // Mock mode
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    const cashRegister = mockCashRegisters.find((cr) => cr.id === cashRegisterId)
+    if (!cashRegister) throw new Error('Caixa não encontrado')
+    if (cashRegister.status === 'closed') throw new Error('Caixa fechado: movimento não registrado')
+
+    const movement: CashMovement = {
+      id: uuidv4(),
+      cashRegisterId,
+      companyId: getCurrentCompanyId(),
+      operatorId: cashRegister.operatorId,
+      type,
+      amount,
+      description,
+      balanceAfter: 0,
+      createdAt: new Date().toISOString(),
     }
-  } catch (error) {
-    console.error('Error closing cash register:', error)
-    throw new Error('Erro ao fechar caixa')
+
+    mockCashMovements.push(movement)
+    if (type === 'withdrawal') cashRegister.totalWithdrawals += amount
+    else cashRegister.totalDeposits += amount
+
+    const balanceAfter = mockExpectedBalance(cashRegister)
+    movement.balanceAfter = balanceAfter
+    return { movementId: movement.id, balanceAfter, replay: false }
+  }
+
+  const { data, error } = await supabase.rpc('registrar_movimento_caixa', {
+    p_cash_register_id: cashRegisterId,
+    p_type: type,
+    p_amount: amount,
+    p_description: description,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (error) throw operationError(error, type === 'withdrawal' ? 'Erro ao registrar sangria' : 'Erro ao registrar suprimento')
+
+  const result = data as { movement_id: string; balance_after: number; replay: boolean }
+  return {
+    movementId: result.movement_id,
+    balanceAfter: Number(result.balance_after),
+    replay: result.replay,
   }
 }
 
 /**
  * Register a cash withdrawal (sangria)
  */
-export async function registerWithdrawal(params: {
+export function registerWithdrawal(params: {
   cashRegisterId: string
-  operatorId: string
   amount: number
   description: string
-  category?: string
-}): Promise<CashMovement> {
-  const { cashRegisterId, operatorId, amount, description, category } = params
-
-  if (!isSupabaseConfigured || !supabase) {
-    // Mock mode
-    await new Promise((resolve) => setTimeout(resolve, 300))
-
-    const cashRegister = mockCashRegisters.find((cr) => cr.id === cashRegisterId)
-    if (!cashRegister) throw new Error('Caixa não encontrado')
-    if (cashRegister.status === 'closed') throw new Error('Caixa está fechado')
-
-    const movement: CashMovement = {
-      id: uuidv4(),
-      cashRegisterId,
-      companyId: getCurrentCompanyId(),
-      operatorId,
-      type: 'withdrawal',
-      amount,
-      description,
-      category,
-      balanceAfter: 0, // Would need to calculate
-      createdAt: new Date().toISOString(),
-    }
-
-    mockCashMovements.push(movement)
-    cashRegister.totalWithdrawals += amount
-
-    return movement
-  }
-
-  // Real Supabase implementation
-  try {
-    const { data, error } = await supabase
-      .from('cash_movements')
-      .insert({
-        cash_register_id: cashRegisterId,
-        company_id: getCurrentCompanyId(),
-        operator_id: operatorId,
-        type: 'withdrawal',
-        amount,
-        description,
-        category,
-        balance_after: 0,
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    // Update cash register total
-    await supabase
-      .from('cash_registers')
-      .update({
-        total_withdrawals: supabase.rpc('increment_total_withdrawals', {
-          p_cash_register_id: cashRegisterId,
-          p_amount: amount,
-        }),
-      })
-      .eq('id', cashRegisterId)
-
-    return {
-      id: data.id,
-      cashRegisterId: data.cash_register_id,
-      companyId: data.company_id,
-      operatorId: data.operator_id,
-      type: data.type,
-      amount: data.amount,
-      description: data.description,
-      category: data.category,
-      balanceAfter: data.balance_after,
-      createdAt: data.created_at,
-    }
-  } catch (error) {
-    console.error('Error registering withdrawal:', error)
-    throw new Error('Erro ao registrar sangria')
-  }
+  idempotencyKey: string
+}): Promise<CashMovementResult> {
+  return registerMovement({ ...params, type: 'withdrawal' })
 }
 
 /**
  * Register a cash deposit (suprimento)
  */
-export async function registerDeposit(params: {
+export function registerDeposit(params: {
   cashRegisterId: string
-  operatorId: string
   amount: number
   description: string
-  category?: string
-}): Promise<CashMovement> {
-  const { cashRegisterId, operatorId, amount, description, category } = params
-
-  if (!isSupabaseConfigured || !supabase) {
-    // Mock mode
-    await new Promise((resolve) => setTimeout(resolve, 300))
-
-    const cashRegister = mockCashRegisters.find((cr) => cr.id === cashRegisterId)
-    if (!cashRegister) throw new Error('Caixa não encontrado')
-    if (cashRegister.status === 'closed') throw new Error('Caixa está fechado')
-
-    const movement: CashMovement = {
-      id: uuidv4(),
-      cashRegisterId,
-      companyId: getCurrentCompanyId(),
-      operatorId,
-      type: 'deposit',
-      amount,
-      description,
-      category,
-      balanceAfter: 0,
-      createdAt: new Date().toISOString(),
-    }
-
-    mockCashMovements.push(movement)
-    cashRegister.totalDeposits += amount
-
-    return movement
-  }
-
-  // Real Supabase implementation
-  try {
-    const { data, error } = await supabase
-      .from('cash_movements')
-      .insert({
-        cash_register_id: cashRegisterId,
-        company_id: getCurrentCompanyId(),
-        operator_id: operatorId,
-        type: 'deposit',
-        amount,
-        description,
-        category,
-        balance_after: 0,
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    // Update cash register total
-    await supabase
-      .from('cash_registers')
-      .update({
-        total_deposits: supabase.rpc('increment_total_deposits', {
-          p_cash_register_id: cashRegisterId,
-          p_amount: amount,
-        }),
-      })
-      .eq('id', cashRegisterId)
-
-    return {
-      id: data.id,
-      cashRegisterId: data.cash_register_id,
-      companyId: data.company_id,
-      operatorId: data.operator_id,
-      type: data.type,
-      amount: data.amount,
-      description: data.description,
-      category: data.category,
-      balanceAfter: data.balance_after,
-      createdAt: data.created_at,
-    }
-  } catch (error) {
-    console.error('Error registering deposit:', error)
-    throw new Error('Erro ao registrar suprimento')
-  }
+  idempotencyKey: string
+}): Promise<CashMovementResult> {
+  return registerMovement({ ...params, type: 'deposit' })
 }
 
 /**
@@ -346,7 +268,7 @@ export async function getCashRegister(cashRegisterId: string): Promise<CashRegis
     return {
       id: data.id,
       companyId: data.company_id,
-      operatorId: data.operator_id,
+      operatorId: data.user_id,
       operatorName: '',
       status: data.status,
       openingDate: data.opened_at,
@@ -363,6 +285,33 @@ export async function getCashRegister(cashRegisterId: string): Promise<CashRegis
     console.error('Error fetching cash register:', error)
     throw new Error('Erro ao carregar caixa')
   }
+}
+
+export interface PaymentMethodTotal {
+  method: string
+  total: number
+}
+
+/**
+ * Totais das vendas do caixa por meio de pagamento (vendas canceladas não entram).
+ * Só o dinheiro entra no saldo do caixa; os demais meios são conferidos separadamente.
+ */
+export async function getSalePaymentTotals(cashRegisterId: string): Promise<PaymentMethodTotal[]> {
+  if (!isSupabaseConfigured || !supabase) return []
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select('method, amount, sales!inner(cash_register_id, status)')
+    .eq('sales.cash_register_id', cashRegisterId)
+    .neq('sales.status', 'cancelled')
+
+  if (error) throw operationError(error, 'Erro ao carregar meios de pagamento')
+
+  const totals = new Map<string, number>()
+  for (const row of data ?? []) {
+    totals.set(row.method, (totals.get(row.method) ?? 0) + Number(row.amount))
+  }
+  return [...totals].map(([method, total]) => ({ method, total: Math.round(total * 100) / 100 }))
 }
 
 /**
@@ -389,11 +338,10 @@ export async function getCashMovements(cashRegisterId: string): Promise<CashMove
       id: row.id,
       cashRegisterId: row.cash_register_id,
       companyId: row.company_id,
-      operatorId: row.operator_id,
+      operatorId: row.operator_id ?? row.user_id,
       type: row.type,
       amount: row.amount,
       description: row.description,
-      category: row.category,
       referenceType: row.reference_type,
       referenceId: row.reference_id,
       balanceAfter: row.balance_after,
@@ -406,7 +354,7 @@ export async function getCashMovements(cashRegisterId: string): Promise<CashMove
 }
 
 /**
- * Get open cash register for operator
+ * Get open cash register for operator. Um operador tem no máximo um caixa aberto (índice único).
  */
 export async function getOpenCashRegister(operatorId: string): Promise<CashRegister | null> {
   if (!isSupabaseConfigured || !supabase) {
@@ -422,21 +370,17 @@ export async function getOpenCashRegister(operatorId: string): Promise<CashRegis
     const { data, error } = await supabase
       .from('cash_registers')
       .select('*')
-      .eq('operator_id', operatorId)
+      .eq('user_id', operatorId)
       .eq('status', 'open')
-      .single()
+      .maybeSingle()
 
-    if (error) {
-      if (error.code === 'PGRST116') return null // No rows returned
-      throw error
-    }
-
+    if (error) throw error
     if (!data) return null
 
     return {
       id: data.id,
       companyId: data.company_id,
-      operatorId: data.operator_id,
+      operatorId: data.user_id,
       operatorName: '',
       status: data.status,
       openingDate: data.opened_at,

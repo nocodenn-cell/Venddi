@@ -139,9 +139,10 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SET request.jwt.claim.sub = 'a2000000-0000-4000-8000-000000000002';
 
-UPDATE users 
-SET role = 'owner' 
-WHERE id = 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+DO $$ BEGIN
+  -- Bloqueio aceito de duas formas: RLS (0 linhas) ou trigger de papel (42501). O que importa é o estado final.
+  UPDATE users SET role = 'owner' WHERE id = 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 -- Expected: 0 rows affected (RLS prevents self-elevation)
 
 SELECT role FROM users WHERE id = 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -155,9 +156,9 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SET request.jwt.claim.sub = 'a2000000-0000-4000-8000-000000000002';
 
-UPDATE users 
-SET company_id = '22222222-2222-2222-2222-222222222222' 
-WHERE id = 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+DO $$ BEGIN
+  UPDATE users SET company_id = '22222222-2222-2222-2222-222222222222' WHERE id = 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 -- Expected: 0 rows affected (RLS prevents company change)
 
 SELECT company_id FROM users WHERE id = 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa';

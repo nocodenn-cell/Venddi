@@ -2,6 +2,9 @@
 
 ## P0 — Quebrado/travado
 
+- Projeto Supabase Venddi (jcvblxyzceszzehehyjd) aparece PAUSADO no CLI (2026-11-14): reativar pelo dashboard e verificar venddipdv.com. Reconciliação do remoto depende disso (docs/AUDITORIA_REMOTA_HOMOLOGACAO.md).
+- Emissão fiscal: decisão do contador (modelo 65/55, venda a CNPJ) e Edge Function em homologação (docs/FISCAL_EDGE_PREPARATORIO.md).
+
 - Aplicar a migration 021 no Supabase: já feito em 2026-10-21 (ver Feito). Confirmar com `npx supabase migration list`.
 - Validar em uso real o convite de funcionário (convidar, abrir o link, definir senha, entrar) — depende de SMTP configurado e do link `/convite` no domínio de produção.
 - Confirmar `APP_URL` = `https://venddipdv.com` e as Redirect URLs no painel do Supabase.

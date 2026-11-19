@@ -119,7 +119,10 @@ SET LOCAL ROLE authenticated;
 SET request.jwt.claim.sub = 'a0000000-0000-4000-8000-00000000000a';
 
 -- Try to move User A to Company B (should be blocked)
-UPDATE users SET company_id = '22222222-2222-2222-2222-222222222222' WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+DO $$ BEGIN
+  -- Bloqueio aceito: trigger de identidade (42501) ou RLS (0 linhas). Conferido pelo estado abaixo.
+  UPDATE users SET company_id = '22222222-2222-2222-2222-222222222222' WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+EXCEPTION WHEN insufficient_privilege THEN NULL; END $$;
 
 -- Verify company_id was not changed
 SELECT company_id FROM users WHERE id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
